@@ -27,14 +27,14 @@ Until Supabase is connected, the site shows **demo data**: two seasons, with pla
 ## 2. Connect Supabase (CLI)
 
 ```bash
-npx supabase login                                   # once per machine
-npx supabase link --project-ref <ref>                # uses SUPABASE_DB_PASSWORD from .env.local
-npx supabase db push                                 # creates tables, security rules, functions
-npx supabase projects api-keys --project-ref <ref>   # copy anon + service_role into .env.local
-npm run admin:add                                    # create an organizer login (prompts for email + password)
+npx supabase login                                            # once per machine
+npx supabase link --project-ref <ref>                         # no DB password needed (CLI uses a temporary login role)
+npx supabase db push                                          # creates tables, security rules, functions
+npx supabase projects api-keys --project-ref <ref> --reveal   # copy the publishable + secret keys into .env.local
+npm run admin:add                                             # create an organizer login (prompts for email + password)
 ```
 
-`.env.local` needs `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for the app. It also needs `SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_DB_PASSWORD` for the local scripts (see `.env.example`).
+`.env.local` needs `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` for the app. It also needs `SUPABASE_SERVICE_ROLE_KEY` (the secret key) for `admin:add` (see `.env.example`).
 
 Schema changes go in a new file in `supabase/migrations/`, then run `npx supabase db push`. More organizers: `npm run admin:add` (list with `admin:list`, remove with `admin:remove -- email`).
 

@@ -135,3 +135,108 @@ export const TIEBREAK_LABELS: Record<TiebreakKey, string> = {
   round_win_pct: "Round win %",
   revives: "Total revives",
 };
+
+// ---------------------------------------------------------------------------
+// Season 2: accounts, profiles, auction (supabase/migrations/20261012000000_accounts_auction.sql)
+// ---------------------------------------------------------------------------
+
+export const PLAYER_ROLES = ["Fragger", "Support", "IGL", "Sniper", "Flex"] as const;
+export type PlayerRole = (typeof PLAYER_ROLES)[number];
+
+export interface PlayerAccount {
+  user_id: string;
+  player_id: string;
+  claimed_at: string;
+}
+
+export interface PlayerProfile {
+  player_id: string;
+  photo_url: string | null;
+  bio: string | null;
+  role: PlayerRole | null;
+  instagram: string | null;
+  youtube: string | null;
+}
+
+export type AuctionStatus = "setup" | "live" | "paused" | "completed";
+export type LotStatus = "pool" | "live" | "sold" | "unsold";
+
+export interface AuctionIncrement {
+  upto: number | null;
+  step: number;
+}
+
+export interface Auction {
+  id: string;
+  season_id: string | null;
+  name: string;
+  status: AuctionStatus;
+  registration_open: boolean;
+  purse: number;
+  base_price: number;
+  min_buys: number;
+  max_buys: number;
+  increments: AuctionIncrement[];
+  timer_seconds: number;
+  bid_extend_seconds: number;
+  countdown_seconds: number;
+  auto_next_seconds: number;
+  voice_enabled: boolean;
+  current_lot_id: string | null;
+  paused_remaining_ms: number | null;
+  created_at: string;
+}
+
+export interface AuctionTeam {
+  auction_id: string;
+  team_id: string;
+  captain_player_id: string | null;
+  sort_order: number;
+}
+
+export interface AuctionLot {
+  id: string;
+  auction_id: string;
+  player_id: string;
+  set_name: string;
+  set_order: number;
+  base_price: number | null;
+  status: LotStatus;
+  round: number;
+  draw_no: number | null;
+  current_bid: number | null;
+  current_team_id: string | null;
+  ends_at: string | null;
+  sold_price: number | null;
+  sold_team_id: string | null;
+  closed_at: string | null;
+  registered_by_player: boolean;
+  created_at: string;
+}
+
+export interface AuctionBid {
+  id: number;
+  auction_id: string;
+  lot_id: string;
+  team_id: string;
+  amount: number;
+  user_id: string | null;
+  created_at: string;
+}
+
+/** Shape returned by the auction_snapshot() database function. */
+export interface AuctionSnapshot {
+  now: string;
+  auction: Auction | null;
+  teams: (AuctionTeam & { spent: number; bought: number })[];
+  lots: AuctionLot[];
+  bids: AuctionBid[];
+}
+
+export interface CommunityData {
+  accounts: PlayerAccount[];
+  profiles: PlayerProfile[];
+  auctions: Auction[];
+  auctionTeams: AuctionTeam[];
+  auctionLots: AuctionLot[];
+}

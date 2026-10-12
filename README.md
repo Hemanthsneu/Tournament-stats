@@ -49,7 +49,7 @@ npx vercel git connect                                        # auto-deploy on e
 npx vercel --prod
 ```
 
-Only the three `NEXT_PUBLIC_*` variables go to Vercel. Never add the service_role key or DB password there.
+The three `NEXT_PUBLIC_*` variables go to Vercel. Add `SUPABASE_SERVICE_ROLE_KEY` as a **sensitive, server-only** variable too; it powers organizer-only tasks like player password resets. Never prefix it with `NEXT_PUBLIC_`.
 
 ---
 
@@ -79,6 +79,47 @@ Only the three `NEXT_PUBLIC_*` variables go to Vercel. Never add the service_rol
 
 Editing or clearing any result recalculates everything, including the playoff bracket.
 
+## Season 2 features
+
+### Player accounts
+1. Players tap **Sign in → Create account** with an email and password. There are no confirmation emails.
+2. Organizers open **Admin → Claims**, click **Generate codes**, then **Copy codes for WhatsApp** and send each player their code.
+3. On **My profile**, a player enters their code. Their profile becomes ✓ Verified, and they can add a photo, bio, role and socials. Stats always stay organizer-only.
+4. Forgot password? Organizers reset it in **Admin → Claims**.
+
+### Live auction
+1. In **Admin → Seasons**, create Season 2 as an empty draft.
+2. In **Admin → Auction**, create the auction for Season 2, then set:
+   - The **rules**: purse, base price, bid steps, time per player, time added after each bid, the 3-2-1 countdown, auto-next, and the voice announcer.
+   - The **teams and captains**. Captains need a claimed profile so they can log in and bid.
+   - The **player pool**: "Add everyone with a claimed profile" (players can also register themselves on My profile), plus optional sets by career MVP.
+3. **Do a dry run first**, then use **Reset for a fresh start**.
+4. On the day, everyone opens **/auction**:
+   - The organizer draws players at random and can pause, sell now, mark unsold, undo, and run an unsold round.
+   - Captains bid from their phones.
+   - Put **Big screen** on a TV or stream it, and tap **Turn sound on** for the announcer.
+5. **Finish auction & create rosters** fills Season 2's teams and rosters. Set Season 2 to Active when you're ready to show it.
+
+The database enforces every bidding rule: purse, squad size, minimum next bid, timer, one bid at a time.
+
+### Also new
+- **Hall of Fame:** champions, award winners, records.
+- **Head-to-head compare:** two players side by side, including their games against each other.
+- **Auction value stats:** most expensive buy, "steal of the auction" (MVP points per 100 credits) and team spend.
+
+### Environments
+- **Staging:** the `wow-league-staging` Supabase project (`.env.staging.local`), used by local dev and the `season-2` Vercel preview. Run against it with:
+  ```bash
+  set -a; source .env.staging.local; set +a; npm run dev
+  ```
+- **Production:** the "Pubg tournament" project (`.env.local`).
+- **Release order:**
+  1. Back up production.
+  2. Run `npx supabase link --project-ref <prod ref>`, then `npx supabase db push`.
+  3. Enable sign-ups (auto-confirm).
+  4. Add `SUPABASE_SERVICE_ROLE_KEY` (sensitive) to Vercel Production.
+  5. Merge to `main`.
+
 ## How the table is ranked
 
 | | |
@@ -97,7 +138,7 @@ Editing or clearing any result recalculates everything, including the playoff br
 | `npm run dev` | Local dev server |
 | `npm test` | League engine unit tests: schedule, standings, tie-breaks, playoffs, careers |
 | `npm run typecheck` | TypeScript check |
-| `npm run admin:add` / `admin:list` / `admin:remove` | Manage organizer logins |
+| `npm run admin:add` / `admin:list` / `admin:remove` | Manage organizer logins (bound to the account's user id) |
 | `npm run db:setup` / `db:demo` / `db:wipe` | Database setup without the CLI, load demo data, delete all league data |
 
 ## Project layout

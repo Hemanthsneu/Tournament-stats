@@ -47,16 +47,23 @@ async function add() {
   if ((await ask("Repeat password: ", true)) !== password) throw new Error("Passwords don't match.");
 
   const existing = await findUser(email);
+  let userId: string;
   if (existing) {
+    // With player sign-ups open, make sure this account really is yours before giving it organizer access.
+    const created = existing.created_at?.slice(0, 10) ?? "unknown date";
+    const confirm = await ask(`An account for ${email} already exists (created ${created}). Make it an organizer and set this password? (y/N) `);
+    if (confirm.toLowerCase() !== "y") throw new Error("Cancelled.");
     const { error } = await supabase.auth.admin.updateUserById(existing.id, { password, email_confirm: true });
     if (error) throw error;
+    userId = existing.id;
     console.log(`✓ Updated password for ${email}`);
   } else {
-    const { error } = await supabase.auth.admin.createUser({ email, password, email_confirm: true });
+    const { data, error } = await supabase.auth.admin.createUser({ email, password, email_confirm: true });
     if (error) throw error;
+    userId = data.user.id;
     console.log(`✓ Created login for ${email}`);
   }
-  const { error } = await supabase.from("admins").upsert({ email });
+  const { error } = await supabase.from("admins").upsert({ email, user_id: userId });
   if (error) throw error;
   console.log(`✓ ${email} is an organizer. Sign in at /admin/login`);
 }

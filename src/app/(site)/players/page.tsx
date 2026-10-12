@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Search, Swords } from "lucide-react";
 import { EmptyState, PageHeader } from "@/components/page-header";
 import { TeamLink } from "@/components/team";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { loadLeague } from "@/lib/data";
 import { filterGames, sortedSeasons } from "@/lib/engine/league";
@@ -33,6 +34,11 @@ export default async function PlayersPage({ searchParams }: PageProps<"/players"
   return (
     <div>
       <PageHeader title="Players" subtitle="Career stats across every season (official games). Search by IGN, old IGN or BGMI UID.">
+        <Button asChild variant="outline">
+          <Link href="/compare">
+            <Swords /> Head-to-head
+          </Link>
+        </Button>
         <form className="relative">
           <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input name="q" defaultValue={q} placeholder="Search players…" className="w-64 pl-8" />

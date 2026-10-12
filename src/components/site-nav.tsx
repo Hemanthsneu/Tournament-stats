@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Crosshair } from "lucide-react";
+import { AccountButton } from "@/components/account-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
@@ -18,9 +19,19 @@ const SEASON_LINKS = [
 const GLOBAL_LINKS = [
   { href: "/teams", label: "Teams" },
   { href: "/players", label: "Players" },
+  { href: "/hall-of-fame", label: "Hall of Fame" },
 ];
 
-export function SiteNav({ seasons, current }: { seasons: { number: number; name: string }[]; current: number | null }) {
+export function SiteNav({
+  seasons,
+  current,
+  auction,
+}: {
+  seasons: { number: number; name: string }[];
+  current: number | null;
+  /** Shown as an "Auction" link (with a live dot while bidding is on). */
+  auction?: { live: boolean } | null;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const match = /^\/s\/(\d+|all)(\/[^/]+)?/.exec(pathname);
@@ -33,8 +44,9 @@ export function SiteNav({ seasons, current }: { seasons: { number: number; name:
 
   const links = [
     ...(seasonForLinks != null ? SEASON_LINKS.map((l) => ({ ...l, href: `/s/${seasonForLinks}${l.href}` })) : []),
+    ...(auction ? [{ href: "/auction", label: "Auction", live: auction.live }] : []),
     ...GLOBAL_LINKS,
-  ];
+  ] as { href: string; label: string; live?: boolean }[];
 
   const isActive = (href: string) =>
     href.split("/").length === 3 ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
@@ -50,10 +62,11 @@ export function SiteNav({ seasons, current }: { seasons: { number: number; name:
             WOW <span className="text-primary">League</span>
           </span>
         </Link>
+        <div className="ml-auto flex items-center gap-2">
         {seasons.length > 0 && selected && (
-          <div className="ml-auto">
+          <div>
             <Select value={selected} onValueChange={onSeasonChange}>
-              <SelectTrigger size="sm" className="w-36">
+              <SelectTrigger size="sm" className="w-32 sm:w-36">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -67,6 +80,8 @@ export function SiteNav({ seasons, current }: { seasons: { number: number; name:
             </Select>
           </div>
         )}
+        <AccountButton />
+        </div>
       </div>
       <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-2 pb-2 text-sm [scrollbar-width:none]">
         {links.map((l) => (
@@ -78,6 +93,7 @@ export function SiteNav({ seasons, current }: { seasons: { number: number; name:
               isActive(l.href) && "bg-accent text-foreground",
             )}
           >
+            {l.live && <span className="mr-1.5 inline-block size-2 animate-pulse rounded-full bg-loss" />}
             {l.label}
           </Link>
         ))}

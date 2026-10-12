@@ -246,3 +246,60 @@ PlayerGameStat  (game_id, player_id, team_id, kills, revives)            -- team
 ## Needed from you
 - **Before Phase 1, step 4:** a free Supabase account and project (I'll walk you through it)
 - **Whenever ready:** team names, logos, player IGNs (and BGMI UIDs if possible), Season 1 map names and WOW map IDs, and the start date and time slots. Sample data is used until then.
+
+---
+
+# Season 2 additions: player accounts, profile claiming, live auction
+
+## 0. Ground rule: nothing existing changes
+- **Additive only.** New tables, new pages and new admin sections. No existing table, column, row or page is modified. Season 1 (league, playoffs, stats) keeps running untouched.
+- **Separate test environment.** Build on a git branch with its own **staging Supabase project**. Vercel preview deployments point at staging, so production is never touched while we build and test.
+- **Backup before release.** Take a full data dump of production before the new migration goes live. The migration only *creates* things, so rolling back is just dropping the new tables.
+- **Ships only after you approve.** You click through the preview link, then we merge to `main`.
+
+## 1. Player accounts & claiming profiles
+- **Sign-in:** a "Sign in" button in the site header opens a player login, separate from the organizer login.
+- **Claiming:**
+  1. A member signs in, searches their IGN, and taps **"This is me"**.
+  2. The organizer approves the claim in Admin → Claims.
+  3. One profile per account, and one account per profile.
+- **Claimed profiles:**
+  - Get a ✓ **Verified** badge on the public player page.
+  - The player can edit their own **photo, bio, preferred role (Fragger / Support / IGL / Sniper) and socials** (Instagram / YouTube).
+  - **They can never edit stats.** Stats stay organizer-only.
+- **Season 2 registration:** a claimed player can mark **"I'm in for Season 2"**, which adds them to the auction pool.
+- **Account help:** organizers can reset a player's password from the admin panel.
+
+## 2. Live auction (IPL-style)
+**Setup (Admin → Auction):**
+- Season 2 teams, and a **captain** for each. The captain must have a claimed profile so they can log in.
+- **Purse** per team (e.g. 1,000 credits), **base price**, **bid increments** (e.g. +10 up to 200, then +25), **bid timer** (e.g. 30 s, resets to 15 s on every bid), **min/max squad size**.
+- **Player pool:** Season 2 registrations plus anyone the organizer adds. Captains are not in the pool; they're already on their team.
+- **Optional sets:** Marquee / Set A / Set B (e.g. based on Season 1 MVP rank), each with its own base price. Players are drawn **at random within each set**.
+
+**Live room (`/auction`, public, updates in real time):**
+- **Current player card:** photo, role, Season 1 stats (kills, revives, MVP, K/G, POTM), career summary.
+- **Bidding:** current bid, leading team, a big countdown, and the bid history.
+- **Teams:** every team's purse left, slots left, and squad so far.
+- **Log:** sold / unsold, with the price for each.
+
+**Captain's room (captain logged in, on the same page):**
+- **Bid +10 / +25** buttons.
+- **Safety rule:** a captain can't bid more than they can afford while still filling the squad: *max bid = purse − (slots left − 1) × base price*.
+- A private **shortlist** of players they want.
+
+**Auctioneer controls (organizer):**
+- Start, **draw next player (random)**, pause/resume, mark unsold, **undo last sale**.
+- **Unsold round** at a lower base price.
+- **Finish auction:** writes the Season 2 teams and rosters automatically.
+
+**Fairness built in:**
+- **Bids are checked on the server:** right captain, enough purse, room left in the squad, timer still running.
+- **One bid at a time:** bids are processed in order, so two captains can't both win.
+- **Same clock for everyone:** the timer runs on the server, so every phone sees the same countdown.
+
+## 3. Suggested extras (pick any)
+- **Prediction game:** signed-in members predict each match winner (and POTM). Points leaderboard all season.
+- **Hall of Fame:** permanent page with every season's champion, MVP, Top Fragger, Best Support and auction record buy.
+- **Head-to-head compare:** pick two players and see their stats side by side, across seasons.
+- **Auction value stats:** "Steal of the auction" (MVP points per credit) and "Most expensive buy", plus team spend, updated as Season 2 games are played.

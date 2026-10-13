@@ -378,12 +378,12 @@ export async function generateOfficialSchedule(seasonId: string, fd: FormData) {
     const idx = buildIndex(await fetchLeagueData());
     const teams = teamsOf(idx, seasonId);
     const maps = poolMaps(idx, seasonId);
-    const fixtures = generateSchedule({ teamIds: teams.map((t) => t.id), mapIds: maps.map((m) => m.id), roundRobins });
+    // New schedules have no matchdays: organizers place each game on a date in the calendar planner.
+    const fixtures = generateSchedule({ teamIds: teams.map((t) => t.id), mapIds: maps.map((m) => m.id), roundRobins, matchdays: false });
     must(await db.from("seasons").update({ round_robins: roundRobins }).eq("id", seasonId));
     must(await db.rpc("replace_official_schedule", { p_season_id: seasonId, p_fixtures: fixtures }));
     const leagueGames = fixtures.filter((f) => f.stage === "league").reduce((a, f) => a + f.games.length, 0);
-    const matchdays = new Set(fixtures.map((f) => f.matchday).filter(Boolean)).size;
-    return `Schedule created: ${leagueGames} league games over ${matchdays} matchdays${teams.length >= 4 ? " + playoffs" : ""}. Now set the dates.`;
+    return `Fixtures created: ${leagueGames} league games${teams.length >= 4 ? " + playoffs" : ""}. Now place them on the calendar.`;
   });
 }
 
@@ -599,5 +599,42 @@ export async function saveMatchDays(seasonId: string, fd: FormData) {
     if (removed.length) must(await db.from("season_match_days").delete().eq("season_id", seasonId).in("day", removed));
     if (days.length) must(await db.from("season_match_days").upsert(days.map((day) => ({ season_id: seasonId, day, label: label(day) }))));
     return `Saved ${days.length} match day${days.length === 1 ? "" : "s"}${removed.length ? ` (removed ${removed.length})` : ""}.`;
+  });
+}
+
+/**
+ * Saves the calendar planner: `plan` is a JSON list of { id, at } where `at` is "YYYY-MM-DDTHH:mm"
+ * in the league timezone, or null to unschedule. Games with results are never moved.
+ */
+export async function saveGamePlan(seasonId: string, fd: FormData) {
+  return run(async (db) => {
+    let raw: unknown;
+    try {
+      raw = JSON.parse(String(fd.get("plan") ?? "[]"));
+    } catch {
+      throw new UserError("Could not read the plan. Please try again.");
+    }
+    if (!Array.isArray(raw)) throw new UserError("Could not read the plan. Please try again.");
+    const idx = buildIndex(await fetchLeagueData());
+    const games = new Map(idx.views.filter((v) => v.season.id === seasonId && v.fixture.type === "official").map((v) => [v.game.id, v]));
+    const updates: { id: string; scheduled_at: string | null }[] = [];
+    let skipped = 0;
+    for (const item of raw as { id?: unknown; at?: unknown }[]) {
+      const v = games.get(String(item?.id));
+      if (!v) continue;
+      if (v.completed) {
+        skipped++;
+        continue;
+      }
+      const at = item.at == null ? null : fromZonedInput(String(item.at));
+      if (item.at != null && !at) throw new UserError(`"${String(item.at)}" is not a valid date and time.`);
+      updates.push({ id: v.game.id, scheduled_at: at });
+    }
+    for (let i = 0; i < updates.length; i += 10) {
+      await Promise.all(
+        updates.slice(i, i + 10).map(async (u) => must(await db.from("games").update({ scheduled_at: u.scheduled_at }).eq("id", u.id))),
+      );
+    }
+    return `Saved ${updates.length} game${updates.length === 1 ? "" : "s"}${skipped ? ` (${skipped} with results left as they were)` : ""}.`;
   });
 }

@@ -14,6 +14,7 @@ import {
   type Team,
   type TiebreakKey,
 } from "../types";
+import { dateKey } from "../time";
 
 // ---------------------------------------------------------------------------
 // Index: lookup maps + a denormalised view of every game
@@ -77,12 +78,18 @@ function groupBy<T>(rows: T[], key: (r: T) => string): Map<string, T[]> {
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 
+const byDateNullsLast = (a: string | null, b: string | null) => (a === b ? 0 : a === null ? 1 : b === null ? -1 : a < b ? -1 : 1);
+
 export function compareGames(a: GameView, b: GameView): number {
   return (
     a.season.number - b.season.number ||
     STAGE_ORDER[a.fixture.stage] - STAGE_ORDER[b.fixture.stage] ||
     (a.fixture.stage === "practice"
       ? (a.game.scheduled_at ?? "").localeCompare(b.game.scheduled_at ?? "")
+      : 0) ||
+    // Calendar-planned league games (no matchdays): by date, unscheduled last.
+    (a.fixture.stage === "league" && a.fixture.matchday == null && b.fixture.matchday == null
+      ? byDateNullsLast(a.game.scheduled_at, b.game.scheduled_at)
       : 0) ||
     (a.fixture.matchday ?? 0) - (b.fixture.matchday ?? 0) ||
     a.fixture.sort_order - b.fixture.sort_order ||
@@ -587,15 +594,32 @@ export function teamFinish(idx: LeagueIndex, seasonId: string, teamId: string): 
 }
 
 /**
- * League positions before the latest matchday was played, for ▲/▼ movement arrows.
- * Returns team id → places gained (positive) or lost (negative); empty until two matchdays exist.
+ * A season planned on the calendar: its league games have no matchday numbers, and organizers put
+ * each game on a date. Seasons generated with matchdays (e.g. Season 1) keep working as before.
+ */
+export function isCalendarSeason(idx: LeagueIndex, seasonId: string): boolean {
+  const league = idx.data.fixtures.filter((f) => f.season_id === seasonId && f.type === "official" && f.stage === "league");
+  return league.length > 0 && league.every((f) => f.matchday == null);
+}
+
+/**
+ * League positions before the latest matchday (or, for calendar seasons, the latest match date)
+ * was played, for ▲/▼ movement arrows. Returns team id → places gained (positive) or lost
+ * (negative); empty until two matchdays/dates exist.
  */
 export function standingsMovement(idx: LeagueIndex, season: Season): Map<string, number> {
   const league = filterGames(idx, { seasonId: season.id, type: "official", stages: ["league"] });
   const played = league.filter((g) => g.completed);
   if (played.length === 0) return new Map();
-  const lastDay = Math.max(...played.map((g) => g.fixture.matchday ?? 0));
-  const before = played.filter((g) => (g.fixture.matchday ?? 0) < lastDay);
+  let before: GameView[];
+  if (isCalendarSeason(idx, season.id)) {
+    const day = (g: GameView) => (g.game.scheduled_at ? dateKey(g.game.scheduled_at) : "");
+    const lastDate = played.map(day).sort().at(-1)!;
+    before = played.filter((g) => day(g) < lastDate);
+  } else {
+    const lastDay = Math.max(...played.map((g) => g.fixture.matchday ?? 0));
+    before = played.filter((g) => (g.fixture.matchday ?? 0) < lastDay);
+  }
   if (before.length === 0) return new Map();
   const teams = seasonTeams(idx, season.id);
   const prev = new Map(computeStandings(season, teams, before).map((r) => [r.team.id, r.position]));

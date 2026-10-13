@@ -6,10 +6,10 @@ import { fmtDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 const NOTES: Record<PlayoffStage, string> = {
-  qualifier_1: "1st vs 2nd · Winner → Final, loser → Qualifier 2",
-  eliminator: "3rd vs 4th · Winner → Qualifier 2, loser out",
-  qualifier_2: "Loser Q1 vs Winner Eliminator · Winner → Final",
-  final: "Winner Q1 vs Winner Q2",
+  qualifier_1: "1st v 2nd. Winner to the Final, loser to Qualifier 2",
+  eliminator: "3rd v 4th. Winner to Qualifier 2, loser out",
+  qualifier_2: "Loser Q1 v winner Eliminator. Winner to the Final",
+  final: "Winner Q1 v winner Q2",
 };
 
 const PLACEHOLDERS: Record<PlayoffStage, [string, string]> = {
@@ -21,16 +21,16 @@ const PLACEHOLDERS: Record<PlayoffStage, [string, string]> = {
 
 function SeriesRow({ team, wins, won, placeholder }: { team: Team | null; wins: number; won: boolean; placeholder: string }) {
   return (
-    <div className={cn("flex items-center gap-2 px-3 py-2", won && "bg-primary/10")}>
+    <div className="flex items-center gap-3 px-4 py-2.5">
       <TeamLogo team={team} size="sm" />
       {team ? (
-        <Link href={`/teams/${team.id}`} className={cn("flex-1 truncate font-medium hover:text-primary", won && "text-primary")}>
+        <Link href={`/teams/${team.id}`} className={cn("flex-1 truncate transition-colors hover:text-muted-foreground", won ? "font-medium" : "text-foreground/80")}>
           {team.name}
         </Link>
       ) : (
-        <span className="flex-1 truncate italic text-muted-foreground">{placeholder}</span>
+        <span className="flex-1 truncate text-muted-foreground">{placeholder}</span>
       )}
-      <span className={cn("font-heading text-lg font-bold tabular", won ? "text-primary" : "text-muted-foreground")}>{team ? wins : ""}</span>
+      <span className={cn("tabular", won ? "font-semibold" : "text-muted-foreground")}>{team ? wins : ""}</span>
     </div>
   );
 }
@@ -38,30 +38,30 @@ function SeriesRow({ team, wins, won, placeholder }: { team: Team | null; wins: 
 export function SeriesCard({ series, stage }: { series: SeriesView | undefined; stage: PlayoffStage }) {
   const [phA, phB] = PLACEHOLDERS[stage];
   const firstDate = series?.games.find((g) => g.game.scheduled_at)?.game.scheduled_at;
+  const winner = series?.winnerId;
   return (
-    <div className={cn("overflow-hidden rounded-xl border bg-card", stage === "final" && "border-primary/50")}>
-      <div className="flex items-center justify-between border-b px-3 py-2">
-        <span className="font-heading text-sm font-bold">{STAGE_LABELS[stage]}</span>
+    <div className={cn("overflow-hidden rounded-xl border bg-card", stage === "final" && "border-foreground/25")}>
+      <div className="flex items-baseline justify-between px-4 pt-3.5 pb-1.5">
+        <span className="text-sm font-medium">{STAGE_LABELS[stage]}</span>
         <span className="text-xs text-muted-foreground">{firstDate ? fmtDate(firstDate) : "Best of 3"}</span>
       </div>
-      <SeriesRow team={series?.teamA ?? null} wins={series?.winsA ?? 0} won={!!series?.winnerId && series.winnerId === series.teamA?.id} placeholder={phA} />
-      <SeriesRow team={series?.teamB ?? null} wins={series?.winsB ?? 0} won={!!series?.winnerId && series.winnerId === series.teamB?.id} placeholder={phB} />
-      {series && series.games.length > 0 && (
-        <div className="flex flex-wrap gap-2 border-t px-3 py-2">
+      <SeriesRow team={series?.teamA ?? null} wins={series?.winsA ?? 0} won={!!winner && winner === series?.teamA?.id} placeholder={phA} />
+      <SeriesRow team={series?.teamB ?? null} wins={series?.winsB ?? 0} won={!!winner && winner === series?.teamB?.id} placeholder={phB} />
+      {series && series.games.some((g) => g.completed) && (
+        <div className="flex flex-wrap gap-1.5 px-4 pb-3">
           {series.games.map((g) => (
             <Link
               key={g.game.id}
               href={`/games/${g.game.id}`}
-              className="rounded-md bg-muted px-2 py-1 text-xs tabular text-muted-foreground hover:text-foreground"
+              className="rounded-md bg-muted px-2 py-0.5 text-xs tabular text-muted-foreground transition-colors hover:text-foreground"
             >
               G{g.game.game_no}
-              {g.map ? ` · ${g.map.name}` : ""}
-              {g.completed ? ` · ${g.game.team_a_rounds}–${g.game.team_b_rounds}` : ""}
+              {g.completed ? ` ${g.game.team_a_rounds}–${g.game.team_b_rounds}` : ""}
             </Link>
           ))}
         </div>
       )}
-      <p className="border-t px-3 py-2 text-[11px] text-muted-foreground">{NOTES[stage]}</p>
+      <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">{NOTES[stage]}</p>
     </div>
   );
 }
@@ -73,12 +73,8 @@ export function Bracket({ series }: { series: Map<PlayoffStage, SeriesView> }) {
         <SeriesCard stage="qualifier_1" series={series.get("qualifier_1")} />
         <SeriesCard stage="eliminator" series={series.get("eliminator")} />
       </div>
-      <div>
-        <SeriesCard stage="qualifier_2" series={series.get("qualifier_2")} />
-      </div>
-      <div>
-        <SeriesCard stage="final" series={series.get("final")} />
-      </div>
+      <SeriesCard stage="qualifier_2" series={series.get("qualifier_2")} />
+      <SeriesCard stage="final" series={series.get("final")} />
     </div>
   );
 }

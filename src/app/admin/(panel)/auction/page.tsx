@@ -31,7 +31,7 @@ export default async function AuctionsAdmin() {
                     {a.name}
                   </Link>
                   <Badge variant="outline">{a.status}</Badge>
-                  {a.is_practice && <Badge className="bg-sky-500/20 text-sky-300">practice</Badge>}
+                  {a.is_practice && <Badge className="bg-info-soft text-info">practice</Badge>}
                   <span className="text-sm text-muted-foreground">
                     {idx.seasonById.get(a.season_id ?? "")?.name ?? "No season"} · {community.auctionTeams.filter((t) => t.auction_id === a.id).length} teams ·{" "}
                     {lots.filter((l) => l.status === "sold").length}/{lots.length} sold

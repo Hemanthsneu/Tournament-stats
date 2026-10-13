@@ -8,7 +8,6 @@ const COLUMNS: { key: string; label: string; hint: string; compact?: boolean }[]
   { key: "p", label: "P", hint: "Map games played", compact: true },
   { key: "w", label: "W", hint: "Won", compact: true },
   { key: "l", label: "L", hint: "Lost", compact: true },
-  { key: "pts", label: "Pts", hint: "Points", compact: true },
   { key: "nrr", label: "NRR", hint: "Net Round Rate = (rounds won − rounds lost) ÷ rounds played", compact: true },
   { key: "rw", label: "RW", hint: "Rounds won" },
   { key: "rl", label: "RL", hint: "Rounds lost" },
@@ -18,7 +17,10 @@ const COLUMNS: { key: string; label: string; hint: string; compact?: boolean }[]
   { key: "nkr", label: "NKR", hint: "Net Kill Rate = (kills − kills conceded) ÷ rounds played" },
   { key: "rev", label: "Rev", hint: "Total revives" },
   { key: "form", label: "Form", hint: "Last 5 results, most recent on the right" },
+  { key: "pts", label: "Pts", hint: "Points", compact: true },
 ];
+
+const tone = (n: number) => (n > 0 ? "text-win" : n < 0 ? "text-loss" : "text-muted-foreground");
 
 function cell(row: StandingRow, key: string): React.ReactNode {
   switch (key) {
@@ -29,9 +31,9 @@ function cell(row: StandingRow, key: string): React.ReactNode {
     case "l":
       return row.lost;
     case "pts":
-      return <span className="font-bold text-foreground">{row.points}</span>;
+      return <span className="font-semibold text-foreground">{row.points}</span>;
     case "nrr":
-      return <span className={metricTone(row.nrr)}>{signed(row.nrr)}</span>;
+      return <span className={tone(row.nrr)}>{signed(row.nrr)}</span>;
     case "rw":
       return row.roundsWon;
     case "rl":
@@ -43,7 +45,7 @@ function cell(row: StandingRow, key: string): React.ReactNode {
     case "kc":
       return row.killsConceded;
     case "nkr":
-      return <span className={metricTone(row.nkr)}>{signed(row.nkr)}</span>;
+      return <span className={tone(row.nkr)}>{signed(row.nkr)}</span>;
     case "rev":
       return row.revives;
     case "form":
@@ -51,19 +53,14 @@ function cell(row: StandingRow, key: string): React.ReactNode {
   }
 }
 
-const metricTone = (n: number) => (n > 0 ? "text-win" : n < 0 ? "text-loss" : "");
-
 export function Form({ results }: { results: ("W" | "L")[] }) {
   if (results.length === 0) return <span className="text-muted-foreground">–</span>;
   return (
-    <span className="inline-flex gap-1">
+    <span className="inline-flex gap-0.5" aria-label={`Form: ${results.join(" ")}`}>
       {results.map((r, i) => (
         <span
           key={i}
-          className={cn(
-            "grid size-5 place-items-center rounded text-[10px] font-bold",
-            r === "W" ? "bg-win/20 text-win" : "bg-loss/20 text-loss",
-          )}
+          className={cn("grid size-[18px] place-items-center rounded-[4px] text-[10px] font-semibold", r === "W" ? "bg-win-soft text-win" : "bg-loss-soft text-loss")}
         >
           {r}
         </span>
@@ -79,7 +76,7 @@ export function StandingsTable({
 }: {
   rows: StandingRow[];
   compact?: boolean;
-  /** Highlight top 2 / top 4 and show Q/E marks (official league table). */
+  /** Mark top 2 / top 4 and show Q/E (official league table). */
   playoffLines?: boolean;
 }) {
   const cols = compact ? COLUMNS.filter((c) => c.compact) : COLUMNS;
@@ -87,15 +84,13 @@ export function StandingsTable({
     <div className="overflow-x-auto rounded-xl border bg-card">
       <table className="w-full min-w-max text-sm tabular">
         <thead>
-          <tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">
-            <th className="sticky left-0 z-10 bg-card py-3 pr-2 pl-4 text-left font-medium">#</th>
-            <th className="sticky left-10 z-10 bg-card px-2 py-3 text-left font-medium">Team</th>
+          <tr className="border-b text-xs text-muted-foreground">
+            <th className="sticky left-0 z-10 w-12 bg-card py-3 pl-4 text-left font-normal">#</th>
+            <th className="sticky left-12 z-10 bg-card px-2 py-3 text-left font-normal">Team</th>
             {cols.map((c) => (
-              <th key={c.key} className="px-2 py-3 text-center font-medium">
+              <th key={c.key} className={cn("px-2.5 py-3 text-right font-normal", c.key === "form" && "text-left", c.key === "pts" && "pr-4 text-foreground")}>
                 <Tooltip>
-                  <TooltipTrigger className="cursor-help underline decoration-dotted decoration-muted-foreground/40 underline-offset-4">
-                    {c.label}
-                  </TooltipTrigger>
+                  <TooltipTrigger className="cursor-help">{c.label}</TooltipTrigger>
                   <TooltipContent>{c.hint}</TooltipContent>
                 </Tooltip>
               </th>
@@ -110,33 +105,28 @@ export function StandingsTable({
               <tr
                 key={row.team.id}
                 className={cn(
-                  "border-b last:border-0 hover:bg-accent/40",
-                  playoffLines && row.position === 4 && rows.length > 4 && "border-b-2 border-b-primary/40",
+                  "border-b transition-colors last:border-0 hover:bg-accent/50",
+                  playoffLines && row.position === 4 && rows.length > 4 && "border-b-foreground/15",
                 )}
               >
-                <td
-                  className={cn(
-                    "sticky left-0 z-10 w-10 bg-card py-3 pr-2 pl-4 font-heading font-bold",
-                    top2 ? "text-primary" : top4 ? "text-sky-300" : "text-muted-foreground",
-                  )}
-                >
+                <td className="sticky left-0 z-10 bg-card py-3 pl-4">
                   <span
                     className={cn(
-                      "absolute inset-y-0 left-0 w-1",
-                      top2 ? "bg-primary" : top4 ? "bg-sky-400/70" : "bg-transparent",
+                      "grid size-6 place-items-center rounded-md text-xs font-medium",
+                      top2 ? "bg-gold-soft text-gold" : top4 ? "bg-info-soft text-info" : "text-muted-foreground",
                     )}
-                  />
-                  {row.position}
+                  >
+                    {row.position}
+                  </span>
                 </td>
-                <td className="sticky left-10 z-10 max-w-48 bg-card px-2 py-3">
+                <td className="sticky left-12 z-10 max-w-52 bg-card px-2 py-3">
                   <div className="flex items-center gap-2">
                     <TeamLink team={row.team} short={compact} />
-                    {row.mark === "Q" && <MarkBadge mark="Q" />}
-                    {row.mark === "E" && <MarkBadge mark="E" />}
+                    {row.mark && <MarkBadge mark={row.mark} />}
                   </div>
                 </td>
                 {cols.map((c) => (
-                  <td key={c.key} className="px-2 py-3 text-center text-muted-foreground">
+                  <td key={c.key} className={cn("px-2.5 py-3 text-right text-muted-foreground", c.key === "form" && "text-left", c.key === "pts" && "pr-4")}>
                     {cell(row, c.key)}
                   </td>
                 ))}
@@ -154,8 +144,8 @@ function MarkBadge({ mark }: { mark: "Q" | "E" }) {
     <Tooltip>
       <TooltipTrigger
         className={cn(
-          "grid size-5 shrink-0 cursor-help place-items-center rounded text-[10px] font-bold",
-          mark === "Q" ? "bg-win/20 text-win" : "bg-loss/20 text-loss",
+          "shrink-0 cursor-help rounded-[4px] px-1 text-[10px] leading-4 font-semibold",
+          mark === "Q" ? "bg-win-soft text-win" : "bg-loss-soft text-loss",
         )}
       >
         {mark}
@@ -167,22 +157,22 @@ function MarkBadge({ mark }: { mark: "Q" | "E" }) {
 
 export function StandingsLegend({ playoffLines }: { playoffLines?: boolean }) {
   return (
-    <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
+    <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
       {playoffLines && (
         <>
           <span className="inline-flex items-center gap-2">
-            <span className="h-3 w-1 rounded bg-primary" /> Top 2: Qualifier 1 (two chances to reach the Final)
+            <span className="size-2.5 rounded-sm bg-gold-soft ring-1 ring-gold/30" /> Top 2 · Qualifier 1
           </span>
           <span className="inline-flex items-center gap-2">
-            <span className="h-3 w-1 rounded bg-sky-400/70" /> 3rd–4th: Eliminator
+            <span className="size-2.5 rounded-sm bg-info-soft ring-1 ring-info/30" /> 3rd–4th · Eliminator
           </span>
         </>
       )}
       <span>
-        <b className="text-foreground">NRR</b> = (RW − RL) ÷ rounds played
+        <span className="text-foreground">NRR</span> (RW − RL) ÷ rounds
       </span>
       <span>
-        <b className="text-foreground">NKR</b> = (Kills − Kills conceded) ÷ rounds played
+        <span className="text-foreground">NKR</span> (K − KC) ÷ rounds
       </span>
     </div>
   );

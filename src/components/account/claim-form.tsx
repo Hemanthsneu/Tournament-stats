@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyRound } from "lucide-react";
+import { KeyRound } from "@/components/icons";
 import { ActionForm } from "@/components/admin/action-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

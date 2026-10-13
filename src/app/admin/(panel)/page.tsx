@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, Circle } from "lucide-react";
+import { CheckCircle2, Circle } from "@/components/icons";
 import { Panel } from "@/components/admin/fields";
 import { TeamLogo } from "@/components/team";
 import { Badge } from "@/components/ui/badge";

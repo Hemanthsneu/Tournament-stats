@@ -1,4 +1,4 @@
-import { Gavel } from "lucide-react";
+import { Gavel } from "@/components/icons";
 import { AuctionRoom, type RoomPlayer } from "@/components/auction/auction-room";
 import { AuctionValue } from "@/components/auction/auction-value";
 import { EmptyState } from "@/components/page-header";

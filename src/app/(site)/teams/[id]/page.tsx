@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { GameCard } from "@/components/game-card";
 import { EmptyState, SectionTitle } from "@/components/page-header";
 import { TeamLogo } from "@/components/team";
-import { Badge } from "@/components/ui/badge";
 import { loadLeague } from "@/lib/data";
 import { filterGames, leagueStandings, sortedSeasons, teamFinish, upNext } from "@/lib/engine/league";
 import { gamesForTeam, teamRoster } from "@/lib/engine/players";
@@ -48,17 +47,17 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
   const topPlayers = [...byPlayer.entries()].sort((a, b) => b[1].kills - a[1].kills).slice(0, 5);
 
   return (
-    <div className="space-y-10">
-      <section className="flex flex-wrap items-center gap-5 rounded-2xl border bg-gradient-to-br from-primary/10 via-card to-card p-6">
+    <div className="space-y-16">
+      <section className="flex flex-wrap items-end gap-x-10 gap-y-8">
         <TeamLogo team={team} size="xl" />
-        <div className="flex-1">
-          <h1 className="text-3xl font-extrabold">{team.name}</h1>
+        <div className="min-w-0 flex-1">
           <p className="text-sm text-muted-foreground">
             {team.tag} · {seasons.length} season{seasons.length === 1 ? "" : "s"}
-            {titles > 0 && <span className="ml-2 text-primary">🏆 {titles}× champion</span>}
+            {titles > 0 && <span className="ml-2 text-gold">{titles}× champion</span>}
           </p>
+          <h1 className="mt-2 text-5xl leading-none sm:text-6xl">{team.name}</h1>
         </div>
-        <div className="grid grid-cols-4 gap-6 text-center">
+        <dl className="grid grid-cols-4 gap-6 sm:gap-8">
           {[
             ["Games", played.length],
             ["W–L", `${wins}–${played.length - wins}`],
@@ -66,11 +65,11 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
             ["Revives", revives],
           ].map(([label, value]) => (
             <div key={label}>
-              <div className="font-heading text-2xl font-bold tabular">{value}</div>
-              <div className="text-xs text-muted-foreground">{label}</div>
+              <dd className="text-2xl font-medium tabular">{value}</dd>
+              <dt className="mt-0.5 text-xs text-muted-foreground">{label}</dt>
             </div>
           ))}
-        </div>
+        </dl>
       </section>
 
       <section>
@@ -78,7 +77,7 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
         <div className="overflow-x-auto rounded-xl border bg-card">
           <table className="w-full min-w-max text-sm tabular">
             <thead>
-              <tr className="border-b text-xs uppercase text-muted-foreground">
+              <tr className="border-b text-xs text-muted-foreground">
                 {["Season", "Finish", "P", "W", "L", "Pts", "NRR", "Kills"].map((h) => (
                   <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
                 ))}
@@ -90,7 +89,7 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
                   <td className="px-4 py-2.5">
                     <Link href={`/s/${season.number}/table`} className="font-medium hover:text-primary">{season.name}</Link>
                   </td>
-                  <td className="px-4 py-2.5">{finish === "Champion" ? <Badge>Champion</Badge> : finish ?? "–"}</td>
+                  <td className="px-4 py-2.5">{finish === "Champion" ? <span className="rounded-full bg-gold-soft px-2 py-0.5 text-xs font-medium text-gold">Champion</span> : finish ?? "–"}</td>
                   <td className="px-4 py-2.5">{row?.played ?? 0}</td>
                   <td className="px-4 py-2.5">{row?.won ?? 0}</td>
                   <td className="px-4 py-2.5">{row?.lost ?? 0}</td>
@@ -142,11 +141,11 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
             <div className="overflow-hidden rounded-xl border bg-card">
               <table className="w-full text-sm tabular">
                 <thead>
-                  <tr className="border-b text-xs uppercase text-muted-foreground">
-                    <th className="px-4 py-2 text-left font-medium">Player</th>
-                    <th className="px-2 py-2 text-center font-medium">Games</th>
-                    <th className="px-2 py-2 text-center font-medium">Kills</th>
-                    <th className="px-4 py-2 text-center font-medium">Revives</th>
+                  <tr className="border-b text-xs text-muted-foreground">
+                    <th className="px-4 py-2 text-left font-normal">Player</th>
+                    <th className="px-2 py-2 text-center font-normal">Games</th>
+                    <th className="px-2 py-2 text-center font-normal">Kills</th>
+                    <th className="px-4 py-2 text-center font-normal">Revives</th>
                   </tr>
                 </thead>
                 <tbody>

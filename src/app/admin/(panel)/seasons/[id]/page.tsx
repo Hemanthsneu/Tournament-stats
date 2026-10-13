@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Trash2 } from "@/components/icons";
 import { ActionButton, ActionForm } from "@/components/admin/action-form";
 import { Field, NativeSelect, Panel, TextField } from "@/components/admin/fields";
 import { Button } from "@/components/ui/button";

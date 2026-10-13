@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Trophy } from "lucide-react";
+import { Trophy } from "@/components/icons";
 import { PageHeader } from "@/components/page-header";
 import { TeamLogo } from "@/components/team";
 import { Badge } from "@/components/ui/badge";
@@ -55,59 +55,68 @@ export default async function GamePage({ params }: PageProps<"/games/[id]">) {
         {completed ? <Badge variant="secondary">Final</Badge> : <Badge variant="outline">Scheduled</Badge>}
       </PageHeader>
 
-      <section className="rounded-2xl border bg-card p-5 sm:p-8">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
+      <section className="border-y py-12">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 sm:gap-10">
           <ScoreSide team={teamA} won={completed ? winnerId === teamA?.id : null} />
           <div className="text-center">
             {completed ? (
-              <div className="font-heading text-4xl font-extrabold tabular sm:text-6xl">
-                <span className={winnerId === teamA?.id ? "text-primary" : "text-muted-foreground"}>{game.team_a_rounds}</span>
-                <span className="mx-2 text-muted-foreground">–</span>
-                <span className={winnerId === teamB?.id ? "text-primary" : "text-muted-foreground"}>{game.team_b_rounds}</span>
+              <div className="font-heading text-7xl leading-none tabular sm:text-8xl">
+                <span className={winnerId === teamA?.id ? "" : "text-muted-foreground/60"}>{game.team_a_rounds}</span>
+                <span className="mx-3 text-muted-foreground/40">–</span>
+                <span className={winnerId === teamB?.id ? "" : "text-muted-foreground/60"}>{game.team_b_rounds}</span>
               </div>
             ) : (
-              <div className="font-heading text-3xl font-bold text-muted-foreground">vs</div>
+              <div className="font-heading text-5xl text-muted-foreground italic">vs</div>
             )}
-            <div className="mt-2 text-xs text-muted-foreground">rounds won</div>
+            <div className="mt-3 text-xs text-muted-foreground">rounds won</div>
           </div>
           <ScoreSide team={teamB} won={completed ? winnerId === teamB?.id : null} />
         </div>
-        <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 border-t pt-4 text-sm text-muted-foreground">
+        <dl className="mx-auto mt-10 flex max-w-3xl flex-wrap justify-center gap-x-10 gap-y-4 text-sm">
           {map && (
-            <span>
-              Map: <b className="text-foreground">{map.name}</b> · {map.total_rounds} rounds
-              {map.wow_map_id && (
-                <>
-                  {" "}
-                  · WOW ID <span className="font-mono text-foreground">{map.wow_map_id}</span>
-                </>
-              )}
-            </span>
+            <div className="text-center">
+              <dt className="text-xs text-muted-foreground">Map</dt>
+              <dd className="mt-1">
+                {map.name} · {map.total_rounds} rounds
+                {map.wow_map_id && <span className="ml-1 font-mono text-muted-foreground">#{map.wow_map_id}</span>}
+              </dd>
+            </div>
           )}
           {game.squad_size && (
-            <span>
-              Format: <b className="text-foreground">{game.squad_size}v{game.squad_size}</b>
-            </span>
+            <div className="text-center">
+              <dt className="text-xs text-muted-foreground">Format</dt>
+              <dd className="mt-1">
+                {game.squad_size}v{game.squad_size}
+              </dd>
+            </div>
           )}
           {completed && (
             <>
-              <span>
-                Kills <b className="text-foreground">{view.killsA}–{view.killsB}</b>
-              </span>
-              <span>
-                Revives <b className="text-foreground">{view.revivesA}–{view.revivesB}</b>
-              </span>
+              <div className="text-center">
+                <dt className="text-xs text-muted-foreground">Kills</dt>
+                <dd className="mt-1 tabular">
+                  {view.killsA}–{view.killsB}
+                </dd>
+              </div>
+              <div className="text-center">
+                <dt className="text-xs text-muted-foreground">Revives</dt>
+                <dd className="mt-1 tabular">
+                  {view.revivesA}–{view.revivesB}
+                </dd>
+              </div>
             </>
           )}
           {potm && (
-            <span className="inline-flex items-center gap-1 text-primary">
-              <Trophy className="size-4" /> Player of the Match:{" "}
-              <Link href={`/players/${potm.id}`} className="font-semibold hover:underline">
-                {potm.ign}
-              </Link>
-            </span>
+            <div className="text-center">
+              <dt className="text-xs text-muted-foreground">Player of the Match</dt>
+              <dd className="mt-1">
+                <Link href={`/players/${potm.id}`} className="inline-flex items-center gap-1 font-medium transition-colors hover:text-muted-foreground">
+                  <Trophy className="size-3.5 text-gold" /> {potm.ign}
+                </Link>
+              </dd>
+            </div>
           )}
-        </div>
+        </dl>
       </section>
 
       {completed && (
@@ -139,13 +148,13 @@ function ScoreSide({ team, won }: { team: Team | null; won: boolean | null }) {
     <div className="flex flex-col items-center gap-2 text-center">
       <TeamLogo team={team} size="xl" />
       {team ? (
-        <Link href={`/teams/${team.id}`} className={cn("font-heading text-lg font-bold hover:text-primary sm:text-2xl", won === false && "text-muted-foreground")}>
+        <Link href={`/teams/${team.id}`} className={cn("text-base font-medium transition-colors hover:text-muted-foreground sm:text-lg", won === false && "text-muted-foreground")}>
           {team.name}
         </Link>
       ) : (
         <span className="italic text-muted-foreground">TBD</span>
       )}
-      {won && <Badge>Winner</Badge>}
+      {won && <span className="rounded-full bg-win-soft px-2 py-0.5 text-xs font-medium text-win">Winner</span>}
     </div>
   );
 }
@@ -161,11 +170,11 @@ function Lineup({ idx, view, team, stats }: { idx: LeagueIndex; view: GameView; 
       </div>
       <table className="w-full text-sm tabular">
         <thead>
-          <tr className="border-b text-xs uppercase text-muted-foreground">
-            <th className="px-4 py-2 text-left font-medium">Player</th>
-            <th className="px-2 py-2 text-center font-medium">Kills</th>
-            <th className="px-2 py-2 text-center font-medium">Revives</th>
-            <th className="px-4 py-2 text-center font-medium">MVP</th>
+          <tr className="border-b text-xs text-muted-foreground">
+            <th className="px-4 py-2 text-left font-normal">Player</th>
+            <th className="px-2 py-2 text-center font-normal">Kills</th>
+            <th className="px-2 py-2 text-center font-normal">Revives</th>
+            <th className="px-4 py-2 text-center font-normal">MVP</th>
           </tr>
         </thead>
         <tbody>

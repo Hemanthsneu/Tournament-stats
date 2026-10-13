@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Trophy, UserPlus } from "lucide-react";
+import { Trophy, UserPlus } from "@/components/icons";
 import { Field, NativeSelect } from "@/components/admin/fields";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -219,11 +219,11 @@ export function ResultForm({
               </div>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-xs uppercase text-muted-foreground">
-                    <th className="w-10 px-4 py-2 text-left font-medium">Played</th>
-                    <th className="px-2 py-2 text-left font-medium">Player</th>
-                    <th className="w-20 px-2 py-2 text-center font-medium">Kills</th>
-                    <th className="w-20 px-4 py-2 text-center font-medium">Revives</th>
+                  <tr className="border-b text-xs text-muted-foreground">
+                    <th className="w-10 px-4 py-2 text-left font-normal">Played</th>
+                    <th className="px-2 py-2 text-left font-normal">Player</th>
+                    <th className="w-20 px-2 py-2 text-center font-normal">Kills</th>
+                    <th className="w-20 px-4 py-2 text-center font-normal">Revives</th>
                   </tr>
                 </thead>
                 <tbody>

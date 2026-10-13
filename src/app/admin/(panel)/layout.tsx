@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Crosshair } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSessionClient } from "@/lib/supabase/server";
@@ -14,7 +13,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!isSupabaseConfigured) {
     return (
       <AdminShell email={null}>
-        <div className="mb-6 rounded-lg border border-primary/40 bg-primary/10 px-4 py-3 text-sm">
+        <div className="mb-6 rounded-lg bg-gold-soft px-4 py-3 text-sm text-gold">
           <b>Preview mode.</b> You&apos;re seeing the demo league, and changes won&apos;t be saved. Connect Supabase (see README) to
           use the real admin panel.
         </div>
@@ -49,13 +48,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 function AdminShell({ email, children }: { email: string | null; children: React.ReactNode }) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="border-b bg-card/50">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-3 px-4 py-3">
-          <Link href="/admin" className="flex items-center gap-2 font-heading font-extrabold">
-            <span className="grid size-7 place-items-center rounded-md bg-primary text-primary-foreground">
-              <Crosshair className="size-4" />
-            </span>
-            Admin
+      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6">
+          <Link href="/admin" className="flex items-baseline gap-1.5 leading-none">
+            <span className="font-heading text-2xl italic">WOW</span>
+            <span className="text-sm font-medium text-muted-foreground">Admin</span>
           </Link>
           <AdminNav />
           <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
@@ -73,7 +70,7 @@ function AdminShell({ email, children }: { email: string | null; children: React
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">{children}</main>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">{children}</main>
     </div>
   );
 }

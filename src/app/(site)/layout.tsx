@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SiteNav } from "@/components/site-nav";
-import { currentSeason, sortedSeasons } from "@/lib/engine/league";
 import { featuredAuction, loadCommunity } from "@/lib/community";
+import { currentSeason, sortedSeasons } from "@/lib/engine/league";
 import { loadLeague } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
@@ -13,22 +13,25 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
   const auction = featuredAuction(await loadCommunity());
   return (
     <>
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:text-sm">
+        Skip to content
+      </a>
       {demo && (
-        <div className="bg-primary px-4 py-1.5 text-center text-xs font-medium text-primary-foreground">
-          Demo data. Connect Supabase to show your real league.
-        </div>
+        <div className="border-b bg-gold-soft px-4 py-1.5 text-center text-xs text-gold">Demo data. Connect Supabase to show your real league.</div>
       )}
       <SiteNav
         seasons={seasons.map((s) => ({ number: s.number, name: s.name }))}
         current={current?.number ?? null}
         auction={auction ? { live: auction.status === "live" || auction.status === "paused" } : null}
       />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:py-8">{children}</main>
+      <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 pt-10 pb-24 sm:px-6 sm:pt-14">
+        <div className="rise">{children}</div>
+      </main>
       <footer className="border-t">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-muted-foreground">
-          <span>BGMI · WOW mode league stats</span>
-          <Link href="/admin" className="hover:text-foreground">
-            Organizer login
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-6 text-xs text-muted-foreground sm:px-6">
+          <span>WOW League · BGMI WOW mode</span>
+          <Link href="/admin" className="transition-colors hover:text-foreground">
+            Organizers
           </Link>
         </div>
       </footer>

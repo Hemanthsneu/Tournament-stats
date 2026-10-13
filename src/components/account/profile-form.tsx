@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera } from "lucide-react";
+import { Camera } from "@/components/icons";
 import { toast } from "sonner";
 import { ActionForm } from "@/components/admin/action-form";
 import { Field, NativeSelect, TextField } from "@/components/admin/fields";
@@ -51,7 +51,7 @@ export function ProfileForm({ playerId, profile, fallbackInitials }: { playerId:
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          className="group relative grid size-28 place-items-center overflow-hidden rounded-2xl border bg-muted font-heading text-2xl font-bold text-muted-foreground"
+          className="group relative grid size-28 place-items-center overflow-hidden rounded-2xl border bg-muted font-heading text-2xl text-muted-foreground"
         >
           {photo ? (
             // eslint-disable-next-line @next/next/no-img-element

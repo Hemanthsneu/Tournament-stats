@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BadgeCheck, CopyPlus, Monitor, Radio, RotateCcw, Square, Trash2 } from "lucide-react";
+import { BadgeCheck, CopyPlus, Monitor, Radio, RotateCcw, Square, Trash2 } from "@/components/icons";
 import { ActionButton, ActionForm } from "@/components/admin/action-form";
 import { Field, NativeSelect, Panel, TextField } from "@/components/admin/fields";
 import { TeamLogo } from "@/components/team";
@@ -65,7 +65,7 @@ export default async function AuctionSetup({ params }: PageProps<"/admin/auction
         </Link>
         <h1 className="text-2xl font-bold">{auction.name}</h1>
         <Badge variant="outline">{auction.status}</Badge>
-        {auction.is_practice && <Badge className="bg-sky-500/20 text-sky-300">PRACTICE</Badge>}
+        {auction.is_practice && <Badge className="bg-info-soft text-info">PRACTICE</Badge>}
         <span className="text-sm text-muted-foreground">
           {teams.length} teams · {lots.length} players in pool · {done} done
         </span>
@@ -90,7 +90,7 @@ export default async function AuctionSetup({ params }: PageProps<"/admin/auction
             ? "This is a practice run. Bid as much as you like, then restart it or delete it. It never creates rosters or counts in any stats."
             : "Want a dry run first? Duplicate this auction as a practice copy with the same teams, captains and pool. The real auction stays untouched."
         }
-        className={auction.is_practice ? "border-sky-500/40" : undefined}
+        className={auction.is_practice ? "border-info/30" : undefined}
       >
         <div className="flex flex-wrap gap-2">
           {!auction.is_practice && (
@@ -288,11 +288,11 @@ export default async function AuctionSetup({ params }: PageProps<"/admin/auction
           <div className="overflow-x-auto">
             <table className="w-full min-w-max text-sm">
               <thead>
-                <tr className="border-b text-xs uppercase text-muted-foreground">
-                  <th className="px-2 py-2 text-left font-medium">Player</th>
-                  <th className="px-2 py-2 text-left font-medium">Career</th>
-                  <th className="px-2 py-2 text-left font-medium">Set / order / base price</th>
-                  <th className="px-2 py-2 text-left font-medium">Status</th>
+                <tr className="border-b text-xs text-muted-foreground">
+                  <th className="px-2 py-2 text-left font-normal">Player</th>
+                  <th className="px-2 py-2 text-left font-normal">Career</th>
+                  <th className="px-2 py-2 text-left font-normal">Set / order / base price</th>
+                  <th className="px-2 py-2 text-left font-normal">Status</th>
                   <th className="px-2 py-2" />
                 </tr>
               </thead>

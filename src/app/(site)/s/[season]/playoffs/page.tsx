@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Crown } from "lucide-react";
+import { Crown } from "@/components/icons";
 import { Bracket } from "@/components/bracket";
 import { EmptyState, PageHeader } from "@/components/page-header";
 import { TeamLogo } from "@/components/team";
@@ -29,13 +29,13 @@ export default async function PlayoffsPage({ params }: PageProps<"/s/[season]/pl
       ) : (
         <>
           {champion && (
-            <div className="mb-6 flex items-center gap-4 rounded-2xl border border-primary/50 bg-gradient-to-r from-primary/20 to-card p-5">
+            <div className="mb-6 flex items-center gap-4 rounded-2xl border border-primary/50 bg-card p-5">
               <TeamLogo team={champion} size="xl" />
               <div>
-                <div className="flex items-center gap-1 text-sm font-semibold uppercase tracking-wider text-primary">
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
                   <Crown className="size-4" /> {season.name} Champion
                 </div>
-                <Link href={`/teams/${champion.id}`} className="font-heading text-3xl font-extrabold hover:text-primary">
+                <Link href={`/teams/${champion.id}`} className="font-heading text-3xl hover:text-primary">
                   {champion.name}
                 </Link>
               </div>

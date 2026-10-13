@@ -1,4 +1,4 @@
-import { BadgeCheck, KeyRound } from "lucide-react";
+import { BadgeCheck, KeyRound } from "@/components/icons";
 import { ActionButton, ActionForm } from "@/components/admin/action-form";
 import { CopyButton } from "@/components/admin/copy-button";
 import { Panel } from "@/components/admin/fields";
@@ -68,10 +68,10 @@ export default async function ClaimsAdmin() {
       <div className="overflow-x-auto rounded-xl border bg-card">
         <table className="w-full min-w-max text-sm">
           <thead>
-            <tr className="border-b text-xs uppercase text-muted-foreground">
-              <th className="px-4 py-3 text-left font-medium">Player</th>
-              <th className="px-2 py-3 text-left font-medium">Status</th>
-              <th className="px-4 py-3 text-right font-medium">Actions</th>
+            <tr className="border-b text-xs text-muted-foreground">
+              <th className="px-4 py-3 text-left font-normal">Player</th>
+              <th className="px-2 py-3 text-left font-normal">Status</th>
+              <th className="px-4 py-3 text-right font-normal">Actions</th>
             </tr>
           </thead>
           <tbody>

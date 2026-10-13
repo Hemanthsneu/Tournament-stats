@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { Crown, Medal, Trophy } from "lucide-react";
+import { Crown } from "@/components/icons";
 import { EmptyState, PageHeader, SectionTitle } from "@/components/page-header";
 import { TeamLink, TeamLogo } from "@/components/team";
-import { Badge } from "@/components/ui/badge";
 import { credits } from "@/lib/auction";
 import { loadCommunity } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
@@ -56,7 +55,7 @@ export default async function HallOfFame() {
   ];
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-16">
       <PageHeader title="Hall of Fame" subtitle="Champions, award winners and records from every season" />
 
       {seasons.map((s) => {
@@ -70,84 +69,83 @@ export default async function HallOfFame() {
           ? community.auctionLots.filter((l) => l.auction_id === auction.id && l.status === "sold").sort((a, b) => (b.sold_price ?? 0) - (a.sold_price ?? 0))[0]
           : undefined;
         return (
-          <section key={s.id} className="overflow-hidden rounded-2xl border bg-card">
-            <div className="flex flex-wrap items-center gap-3 border-b bg-gradient-to-r from-primary/15 to-transparent px-5 py-4">
-              <h2 className="text-2xl font-extrabold">{s.name}</h2>
-              {!champ && <Badge variant="outline">In progress</Badge>}
-            </div>
-            <div className="grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-              <div className="space-y-4">
-                {champ ? (
-                  <div className="flex items-center gap-4 rounded-xl border border-primary/50 bg-primary/10 p-4">
-                    <TeamLogo team={champ} size="lg" />
-                    <div>
-                      <div className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-primary">
-                        <Crown className="size-4" /> Champion
-                      </div>
-                      <Link href={`/teams/${champ.id}`} className="font-heading text-2xl font-bold hover:text-primary">
-                        {champ.name}
-                      </Link>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                    Champion decided in the Final.
-                    {leader && leader.played > 0 && (
-                      <span className="mt-2 flex items-center gap-2 text-foreground">
-                        Top of the table: <TeamLink team={leader.team} size="xs" />
-                      </span>
+          <section key={s.id} className="grid gap-8 border-t pt-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+            <div>
+              <p className="text-sm text-muted-foreground">{champ ? `Season ${s.number}` : "In progress"}</p>
+              <h2 className="mt-1 font-heading text-4xl font-normal">{s.name}</h2>
+              <dl className="mt-6 space-y-3 text-sm">
+                <div className="flex items-center gap-3">
+                  <dt className="w-28 text-muted-foreground">{champ ? "Champion" : "Top of table"}</dt>
+                  <dd className="flex items-center gap-1.5">
+                    {champ ? (
+                      <>
+                        <Crown className="size-3.5 text-gold" /> <TeamLink team={champ} size="xs" />
+                      </>
+                    ) : leader && leader.played > 0 ? (
+                      <TeamLink team={leader.team} size="xs" />
+                    ) : (
+                      <span className="text-muted-foreground">–</span>
                     )}
-                  </div>
-                )}
+                  </dd>
+                </div>
                 {runner && (
-                  <div className="flex items-center gap-3 rounded-xl border p-3 text-sm">
-                    <Medal className="size-4 text-muted-foreground" /> Runner-up <TeamLink team={runner} size="xs" className="ml-auto" />
+                  <div className="flex items-center gap-3">
+                    <dt className="w-28 text-muted-foreground">Runner-up</dt>
+                    <dd>
+                      <TeamLink team={runner} size="xs" />
+                    </dd>
                   </div>
                 )}
                 {recordBuy && (
-                  <div className="flex items-center gap-3 rounded-xl border p-3 text-sm">
-                    <Trophy className="size-4 text-primary" /> Record auction buy
-                    <Link href={`/players/${recordBuy.player_id}`} className="ml-auto font-semibold hover:text-primary">
-                      {idx.playerById.get(recordBuy.player_id)?.ign}
-                    </Link>
-                    <span className="tabular text-muted-foreground">{credits(recordBuy.sold_price ?? 0)}</span>
+                  <div className="flex items-center gap-3">
+                    <dt className="w-28 text-muted-foreground">Record buy</dt>
+                    <dd>
+                      <Link href={`/players/${recordBuy.player_id}`} className="font-medium transition-colors hover:text-muted-foreground">
+                        {idx.playerById.get(recordBuy.player_id)?.ign}
+                      </Link>{" "}
+                      <span className="tabular text-muted-foreground">· {credits(recordBuy.sold_price ?? 0)}</span>
+                    </dd>
                   </div>
                 )}
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {SEASON_AWARDS.map((award) => {
-                  const top = rankBy(board, award.key).filter((r) => r[award.key] > 0)[0];
-                  return (
-                    <div key={award.key} className="rounded-xl border p-4">
-                      <div className="text-xs font-semibold uppercase tracking-wider text-primary">
-                        {award.title}
-                        {!champ && <span className="ml-1 font-normal normal-case text-muted-foreground">(leader)</span>}
-                      </div>
-                      {top ? (
-                        <div className="mt-2 flex items-center gap-3">
-                          <TeamLogo team={top.team} size="sm" />
-                          <Link href={`/players/${top.player.id}`} className="flex-1 truncate font-heading text-lg font-bold hover:text-primary">
+              </dl>
+            </div>
+            <div className="grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2">
+              {SEASON_AWARDS.map((award) => {
+                const top = rankBy(board, award.key).filter((r) => r[award.key] > 0)[0];
+                return (
+                  <div key={award.key} className="bg-card p-5">
+                    <div className="text-xs text-muted-foreground">
+                      {award.title}
+                      {!champ && " · leader"}
+                    </div>
+                    {top ? (
+                      <div className="mt-3 flex items-end justify-between gap-3">
+                        <div className="min-w-0">
+                          <Link href={`/players/${top.player.id}`} className="block truncate font-heading text-2xl leading-none transition-colors hover:text-muted-foreground">
                             {top.player.ign}
                           </Link>
-                          <span className="tabular text-sm text-muted-foreground">
-                            {Math.round(top[award.key])} {award.unit}
-                          </span>
+                          <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <TeamLogo team={top.team} size="xs" /> {top.team?.name}
+                          </div>
                         </div>
-                      ) : (
-                        <p className="mt-2 text-sm text-muted-foreground">Not decided yet</p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                        <span className="shrink-0 text-sm tabular text-muted-foreground">
+                          {Math.round(top[award.key])} {award.unit}
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-muted-foreground">Not recorded yet</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </section>
         );
       })}
 
-      <section>
+      <section className="border-t pt-10">
         <SectionTitle>All-time records</SectionTitle>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2 lg:grid-cols-3">
           {records.map((r) =>
             r.who && r.value(r.who) > 0 ? (
               <Record key={r.title} title={r.title} href={`/players/${r.who.player.id}`} name={r.who.player.ign} value={`${r.value(r.who)} ${r.unit}`} />
@@ -174,10 +172,10 @@ export default async function HallOfFame() {
 
 function Record({ title, href, name, value, sub }: { title: string; href: string; name: string; value: string; sub?: string }) {
   return (
-    <Link href={href} className="rounded-xl border bg-card p-4 transition hover:border-primary/50">
-      <div className="text-xs font-semibold uppercase tracking-wider text-primary">{title}</div>
-      <div className="mt-2 flex items-baseline justify-between gap-2">
-        <span className="truncate font-heading text-lg font-bold">{name}</span>
+    <Link href={href} className="bg-card p-5 transition-colors hover:bg-accent/40">
+      <div className="text-xs text-muted-foreground">{title}</div>
+      <div className="mt-3 flex items-baseline justify-between gap-2">
+        <span className="truncate font-heading text-2xl leading-none">{name}</span>
         <span className="shrink-0 tabular text-sm text-muted-foreground">{value}</span>
       </div>
       {sub && <div className="mt-1 text-xs text-muted-foreground">{sub}</div>}

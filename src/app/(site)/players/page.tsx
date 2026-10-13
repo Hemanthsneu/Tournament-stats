@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Swords } from "lucide-react";
+import { Search, Swords } from "@/components/icons";
 import { EmptyState, PageHeader } from "@/components/page-header";
 import { TeamLink } from "@/components/team";
 import { Button } from "@/components/ui/button";
@@ -50,13 +50,13 @@ export default async function PlayersPage({ searchParams }: PageProps<"/players"
         <div className="overflow-x-auto rounded-xl border bg-card">
           <table className="w-full min-w-max text-sm tabular">
             <thead>
-              <tr className="border-b text-xs uppercase text-muted-foreground">
-                <th className="px-4 py-3 text-left font-medium">Player</th>
-                <th className="px-2 py-3 text-left font-medium">{latest ? `${latest.name} team` : "Team"}</th>
-                <th className="px-2 py-3 text-center font-medium">Games</th>
-                <th className="px-2 py-3 text-center font-medium">Kills</th>
-                <th className="px-2 py-3 text-center font-medium">Revives</th>
-                <th className="px-4 py-3 text-center font-medium">POTM</th>
+              <tr className="border-b text-xs text-muted-foreground">
+                <th className="px-4 py-3 text-left font-normal">Player</th>
+                <th className="px-2 py-3 text-left font-normal">{latest ? `${latest.name} team` : "Team"}</th>
+                <th className="px-2 py-3 text-center font-normal">Games</th>
+                <th className="px-2 py-3 text-center font-normal">Kills</th>
+                <th className="px-2 py-3 text-center font-normal">Revives</th>
+                <th className="px-4 py-3 text-center font-normal">POTM</th>
               </tr>
             </thead>
             <tbody>

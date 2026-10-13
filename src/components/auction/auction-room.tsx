@@ -17,7 +17,7 @@ import {
   Volume2,
   VolumeX,
   X,
-} from "lucide-react";
+} from "@/components/icons";
 import { TeamLogo } from "@/components/team";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -251,13 +251,12 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
   const showResult = result && !lot;
 
   return (
-    <div className={cn(screen ? "fixed inset-0 z-50 overflow-y-auto bg-background p-4 sm:p-8" : "space-y-6", myTeam && !screen && "pb-24 lg:pb-0")}>
+    <div className={cn(screen ? "dark fixed inset-0 z-50 space-y-8 overflow-y-auto bg-background p-6 text-foreground sm:p-10" : "space-y-8", myTeam && !screen && "pb-24 lg:pb-0")}>
       {/* Header */}
       <div className={cn("flex flex-wrap items-center gap-3", screen && "mb-6")}>
-        <Gavel className="size-6 text-primary" />
-        <h1 className={cn("font-bold", screen ? "text-3xl sm:text-4xl" : "text-2xl sm:text-3xl")}>{a.name}</h1>
+        <h1 className={cn("leading-none", screen ? "text-5xl sm:text-6xl" : "text-4xl sm:text-5xl")}>{a.name}</h1>
         <StatusBadge status={a.status} />
-        {a.is_practice && <Badge className="bg-sky-500/20 text-sky-300">PRACTICE</Badge>}
+        {a.is_practice && <Badge className="bg-info-soft text-info">PRACTICE</Badge>}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {a.voice_enabled && a.status !== "completed" && (
             <Button variant={announcer.enabled ? "default" : "outline"} size="sm" onClick={announcer.toggle}>
@@ -286,7 +285,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
       </div>
 
       {a.is_practice && !screen && (
-        <div className="rounded-lg border border-sky-500/40 bg-sky-500/10 px-4 py-2.5 text-sm">
+        <div className="rounded-lg border border-info/30 bg-info-soft px-4 py-2.5 text-sm">
           <b>Practice auction.</b> Bid freely: nothing here creates rosters or counts in stats, and organizers can restart it any time.
         </div>
       )}
@@ -295,7 +294,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
         {/* Stage */}
         <section
           className={cn(
-            "relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/15 via-card to-card p-5 sm:p-8",
+            "relative overflow-hidden rounded-2xl border bg-card p-6 sm:p-10",
             inCountdown && "border-loss/70",
           )}
         >
@@ -304,7 +303,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
               <PlayerPhoto player={player} big={screen} />
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <Badge variant="outline" className="border-primary/40 text-primary">
+                  <Badge variant="outline">
                     {lot.set_name}
                     {lot.round > 1 ? ` · round ${lot.round}` : ""}
                   </Badge>
@@ -316,7 +315,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
                   )}
                   <span className="text-muted-foreground">Base {credits(lotBase(a, lot))}</span>
                 </div>
-                <h2 className={cn("mt-2 font-heading font-extrabold leading-none", screen ? "text-6xl sm:text-7xl" : "text-4xl sm:text-5xl")}>
+                <h2 className={cn("mt-2 font-heading leading-none", screen ? "text-6xl sm:text-7xl" : "text-4xl sm:text-5xl")}>
                   {player.ign}
                 </h2>
                 {player.lastTeam && <p className="mt-1 text-sm text-muted-foreground">Last played for {player.lastTeam}</p>}
@@ -325,11 +324,11 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
 
                 <div className="mt-6 flex flex-wrap items-end gap-6">
                   <div>
-                    <div className="text-xs uppercase tracking-wider text-muted-foreground">{lot.current_bid != null ? "Current bid" : "Opening bid"}</div>
+                    <div className="text-xs text-muted-foreground">{lot.current_bid != null ? "Current bid" : "Opening bid"}</div>
                     <div
                       key={flash}
                       className={cn(
-                        "font-heading font-extrabold tabular text-primary animate-in zoom-in-110 duration-300",
+                        "font-heading leading-none tabular animate-in fade-in zoom-in-105 duration-300",
                         screen ? "text-8xl" : "text-6xl sm:text-7xl",
                       )}
                     >
@@ -359,7 +358,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
 
           {inCountdown && (
             <div className="pointer-events-none absolute inset-0 grid place-items-center bg-background/30">
-              <span key={secs} className="font-heading text-[10rem] font-extrabold leading-none text-loss drop-shadow-lg animate-in zoom-in-150 fade-in duration-300 sm:text-[14rem]">
+              <span key={secs} className="font-heading text-[10rem] leading-none text-loss animate-in zoom-in-125 fade-in duration-300 sm:text-[14rem]">
                 {secs}
               </span>
             </div>
@@ -381,7 +380,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
           )}
           {viewer.isAdmin && (
             <div className="rounded-xl border bg-card p-4">
-              <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-primary">Auctioneer</div>
+              <div className="mb-3 text-xs text-muted-foreground">Auctioneer</div>
               <div className="grid grid-cols-2 gap-2">
                 {!lot && a.status !== "completed" && pool.length > 0 && (
                   <Button className="col-span-2" size="lg" disabled={busy} onClick={() => void draw()}>
@@ -475,7 +474,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
               <p className="mt-3 text-[11px] text-muted-foreground">
                 {a.auto_next_seconds > 0 ? `Next player is drawn automatically ${a.auto_next_seconds}s after each result. ` : ""}
                 Settings, captains and the final roster step are in{" "}
-                <Link href={`/admin/auction/${a.id}`} className="text-primary">
+                <Link href={`/admin/auction/${a.id}`} className="text-foreground underline underline-offset-2">
                   Admin → Auction
                 </Link>
                 .
@@ -485,7 +484,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
           {!viewer.signedIn && a.status !== "completed" && (
             <p className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
               Captain?{" "}
-              <Link href={`/login?next=${encodeURIComponent(`/auction?id=${auctionId}`)}`} className="text-primary">
+              <Link href={`/login?next=${encodeURIComponent(`/auction?id=${auctionId}`)}`} className="text-foreground underline underline-offset-2">
                 Sign in
               </Link>{" "}
               to bid for your team.
@@ -525,12 +524,12 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
                     <div className="truncate text-xs text-muted-foreground">Captain: {t.captain_player_id ? ign(t.captain_player_id) : "TBD"}</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-heading text-xl font-bold tabular">{credits(purse.left)}</div>
-                    <div className="text-[10px] uppercase text-muted-foreground">left</div>
+                    <div className="text-xl font-medium tabular">{credits(purse.left)}</div>
+                    <div className="text-[11px] text-muted-foreground">left</div>
                   </div>
                 </div>
-                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-primary" style={{ width: `${Math.max(0, (purse.left / a.purse) * 100)}%` }} />
+                <div className="mt-4 h-1 overflow-hidden rounded-full bg-muted">
+                  <div className="h-full rounded-full bg-foreground/70 transition-[width] duration-500" style={{ width: `${Math.max(0, (purse.left / a.purse) * 100)}%` }} />
                 </div>
                 <div className="mt-2 flex justify-between text-[11px] text-muted-foreground">
                   <span>
@@ -604,7 +603,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
 function StatusBadge({ status }: { status: string }) {
   if (status === "live")
     return (
-      <Badge className="gap-1.5 bg-loss text-white">
+      <Badge className="gap-1.5 bg-loss-soft text-loss">
         <span className="size-2 animate-pulse rounded-full bg-white" /> LIVE
       </Badge>
     );
@@ -617,9 +616,9 @@ function PlayerPhoto({ player, big }: { player: RoomPlayer; big: boolean }) {
   const size = big ? "size-56 sm:size-64" : "size-40 sm:size-48";
   return player.photo ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={player.photo} alt="" className={cn(size, "rounded-2xl border object-cover shadow-xl")} />
+    <img src={player.photo} alt={player.ign} className={cn(size, "rounded-2xl object-cover")} />
   ) : (
-    <div className={cn(size, "grid place-items-center rounded-2xl border bg-gradient-to-br from-primary/40 to-primary/5 font-heading text-6xl font-extrabold text-primary shadow-xl")}>
+    <div className={cn(size, "grid place-items-center rounded-2xl bg-muted font-heading text-7xl text-muted-foreground")}>
       {player.ign.slice(0, 2).toUpperCase()}
     </div>
   );
@@ -637,14 +636,14 @@ function StatChips({ player }: { player: RoomPlayer }) {
     ["POTM", s.potm],
   ];
   return (
-    <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
+    <dl className="mt-6 grid grid-cols-3 gap-x-6 gap-y-4 sm:grid-cols-6">
       {chips.map(([label, value]) => (
-        <div key={label} className="rounded-lg border bg-background/50 px-2 py-1.5 text-center">
-          <div className="font-heading text-lg font-bold tabular">{value}</div>
-          <div className="text-[10px] uppercase text-muted-foreground">{label}</div>
+        <div key={label}>
+          <dd className="text-lg font-medium tabular">{value}</dd>
+          <dt className="text-[11px] text-muted-foreground">{label}</dt>
         </div>
       ))}
-    </div>
+    </dl>
   );
 }
 
@@ -660,7 +659,7 @@ function Countdown({ secs, total, remainingMs, paused, danger, big }: { secs: nu
           cx="50"
           cy="50"
           r={r}
-          className={cn("fill-none transition-[stroke-dashoffset] duration-100 ease-linear", danger ? "stroke-loss" : secs <= 10 ? "stroke-primary" : "stroke-win")}
+          className={cn("fill-none transition-[stroke-dashoffset] duration-100 ease-linear", danger ? "stroke-loss" : "stroke-foreground")}
           strokeWidth="8"
           strokeLinecap="round"
           strokeDasharray={c}
@@ -669,8 +668,8 @@ function Countdown({ secs, total, remainingMs, paused, danger, big }: { secs: nu
       </svg>
       <div className="absolute inset-0 grid place-items-center text-center">
         <div>
-          <div className={cn("font-heading font-extrabold tabular", big ? "text-5xl" : "text-3xl", danger && "text-loss")}>{paused ? "II" : secs}</div>
-          <div className="text-[10px] uppercase text-muted-foreground">{paused ? "paused" : "seconds"}</div>
+          <div className={cn("font-medium tabular", big ? "text-5xl" : "text-3xl", danger && "text-loss")}>{paused ? "II" : secs}</div>
+          <div className="text-[11px] text-muted-foreground">{paused ? "paused" : "seconds"}</div>
         </div>
       </div>
     </div>
@@ -704,26 +703,26 @@ function CaptainPanel({
           ? `Over your max bid (${credits(purse.maxBid)})`
           : null;
   return (
-    <div className="rounded-xl border-2 border-primary/60 bg-card p-4">
+    <div className="rounded-xl border border-foreground/20 bg-card p-5">
       <div className="flex items-center gap-2">
         <TeamLogo team={team} size="sm" />
         <div className="flex-1">
-          <div className="text-xs font-semibold uppercase tracking-wider text-primary">Captain&apos;s room</div>
+          <div className="text-xs text-muted-foreground">Captain&apos;s room</div>
           <div className="font-semibold">{team?.name}</div>
         </div>
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2 text-center">
         <div>
-          <div className="font-heading text-xl font-bold tabular">{credits(purse.left)}</div>
-          <div className="text-[10px] uppercase text-muted-foreground">Purse left</div>
+          <div className="text-xl font-medium tabular">{credits(purse.left)}</div>
+          <div className="text-[11px] text-muted-foreground">Purse left</div>
         </div>
         <div>
-          <div className="font-heading text-xl font-bold tabular">{purse.slotsLeft}</div>
-          <div className="text-[10px] uppercase text-muted-foreground">Slots left</div>
+          <div className="text-xl font-medium tabular">{purse.slotsLeft}</div>
+          <div className="text-[11px] text-muted-foreground">Slots left</div>
         </div>
         <div>
-          <div className="font-heading text-xl font-bold tabular">{credits(Math.max(purse.maxBid, 0))}</div>
-          <div className="text-[10px] uppercase text-muted-foreground">Max bid</div>
+          <div className="text-xl font-medium tabular">{credits(Math.max(purse.maxBid, 0))}</div>
+          <div className="text-[11px] text-muted-foreground">Max bid</div>
         </div>
       </div>
       {options.length > 0 && (
@@ -766,10 +765,10 @@ function MobileBidBar({
     <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur lg:hidden">
       <div className="mx-auto flex max-w-xl items-center gap-3">
         <div className="min-w-0">
-          <div className="text-[10px] uppercase text-muted-foreground">{leading ? "You lead at" : "Current"}</div>
-          <div className="font-heading text-2xl font-extrabold tabular text-primary">{credits(price)}</div>
+          <div className="text-[11px] text-muted-foreground">{leading ? "You lead at" : "Current"}</div>
+          <div className="text-2xl font-medium tabular">{credits(price)}</div>
         </div>
-        <div className={cn("font-heading text-2xl font-bold tabular", danger && "text-loss")}>{secs}s</div>
+        <div className={cn("text-2xl font-medium tabular", danger && "text-loss")}>{secs}s</div>
         <Button size="lg" className="ml-auto h-12 flex-1 text-base" disabled={disabled || leading} onClick={() => onBid(next)}>
           <Gavel /> {leading ? "Leading" : `Bid ${credits(next)}`}
         </Button>
@@ -796,7 +795,7 @@ function BidFeed({
     <div className="rounded-xl border bg-card p-4">
       {lotId && (
         <>
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Bids</div>
+          <div className="mb-2 text-xs text-muted-foreground">Bids</div>
           {bids.length === 0 ? (
             <p className="text-sm text-muted-foreground">No bids yet.</p>
           ) : (
@@ -812,7 +811,7 @@ function BidFeed({
           )}
         </>
       )}
-      <div className={cn("mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground", lotId && "mt-4 border-t pt-3")}>Results</div>
+      <div className={cn("mb-2 text-xs text-muted-foreground", lotId && "mt-4 border-t pt-3")}>Results</div>
       {recentClosed.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nothing sold yet.</p>
       ) : (
@@ -842,19 +841,19 @@ function ResultBanner({ result, player, team, big }: { result: Result; player: R
     <div className="grid place-items-center py-10 text-center animate-in zoom-in-95 fade-in duration-500">
       <div
         className={cn(
-          "rotate-[-6deg] rounded-xl border-4 px-6 py-2 font-heading font-extrabold uppercase tracking-widest",
+          "rotate-[-4deg] rounded-lg border-2 px-6 py-1 font-heading italic",
           sold ? "border-win text-win" : "border-muted-foreground text-muted-foreground",
           big ? "text-7xl" : "text-5xl",
         )}
       >
         {sold ? "Sold!" : "Unsold"}
       </div>
-      <div className={cn("mt-6 font-heading font-bold", big ? "text-5xl" : "text-3xl")}>{player?.ign}</div>
+      <div className={cn("mt-6 font-heading", big ? "text-5xl" : "text-3xl")}>{player?.ign}</div>
       {sold && (
         <div className="mt-3 flex items-center gap-3 text-xl">
           <TeamLogo team={team} size="md" />
           <span className="font-semibold">{team?.name}</span>
-          <span className="font-heading text-3xl font-extrabold text-primary tabular">{credits(result.lot.sold_price ?? 0)}</span>
+          <span className="font-heading text-4xl tabular">{credits(result.lot.sold_price ?? 0)}</span>
         </div>
       )}
     </div>
@@ -874,8 +873,8 @@ function IdleStage({ status, poolCount, unsoldCount, isAdmin }: { status: string
             : "Every player has been auctioned";
   return (
     <div className="grid place-items-center py-16 text-center">
-      <Gavel className="size-12 text-primary" />
-      <p className="mt-4 font-heading text-2xl font-bold">{title}</p>
+      <Gavel className="size-10 text-muted-foreground" />
+      <p className="mt-4 font-heading text-2xl">{title}</p>
       <p className="mt-1 text-sm text-muted-foreground">
         {status === "completed"
           ? "See the final squads below."

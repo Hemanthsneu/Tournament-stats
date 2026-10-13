@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserRound } from "lucide-react";
+import { UserRound } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { browserSupabase } from "@/lib/supabase/browser";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -23,9 +23,9 @@ export function AccountButton() {
 
   if (!isSupabaseConfigured || signedIn === null) return null;
   return signedIn ? (
-    <Button asChild size="sm" variant="outline">
+    <Button asChild size="sm" variant="ghost">
       <Link href="/me">
-        <UserRound /> <span className="hidden sm:inline">My profile</span>
+        <UserRound /> <span className="hidden sm:inline">Profile</span>
       </Link>
     </Button>
   ) : (

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Swords } from "lucide-react";
+import { Swords } from "@/components/icons";
 import { NativeSelect } from "@/components/admin/fields";
 import { EmptyState, PageHeader, SectionTitle } from "@/components/page-header";
 import { TeamLink, TeamLogo } from "@/components/team";
@@ -82,7 +82,7 @@ function Comparison({ A, B, photoA, photoB }: { A: Career; B: Career; photoA: st
     <>
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
         <Header career={A} photo={photoA} align="left" />
-        <span className="font-heading text-3xl font-extrabold text-muted-foreground">vs</span>
+        <span className="font-heading text-3xl text-muted-foreground">vs</span>
         <Header career={B} photo={photoB} align="right" />
       </div>
 
@@ -98,7 +98,7 @@ function Comparison({ A, B, photoA, photoB }: { A: Career; B: Career; photoA: st
                   <div className={cn("ml-auto h-full rounded-full", r.a >= r.b ? "bg-primary" : "bg-muted-foreground/50")} style={{ width: `${(r.a / max) * 100}%` }} />
                 </div>
               </div>
-              <span className="w-36 text-center text-xs uppercase tracking-wide text-muted-foreground">{r.label}</span>
+              <span className="w-36 text-center text-xs text-muted-foreground">{r.label}</span>
               <div className="flex items-center gap-3">
                 <div className="h-2 w-full max-w-48 overflow-hidden rounded-full bg-muted">
                   <div className={cn("h-full rounded-full", r.b >= r.a ? "bg-primary" : "bg-muted-foreground/50")} style={{ width: `${(r.b / max) * 100}%` }} />
@@ -143,10 +143,10 @@ function Comparison({ A, B, photoA, photoB }: { A: Career; B: Career; photoA: st
         <div className="overflow-x-auto rounded-xl border bg-card">
           <table className="w-full min-w-max text-sm tabular">
             <thead>
-              <tr className="border-b text-xs uppercase text-muted-foreground">
-                <th className="px-4 py-2.5 text-left font-medium">Season</th>
-                <th className="px-4 py-2.5 text-left font-medium">{A.player.ign}</th>
-                <th className="px-4 py-2.5 text-left font-medium">{B.player.ign}</th>
+              <tr className="border-b text-xs text-muted-foreground">
+                <th className="px-4 py-2.5 text-left font-normal">Season</th>
+                <th className="px-4 py-2.5 text-left font-normal">{A.player.ign}</th>
+                <th className="px-4 py-2.5 text-left font-normal">{B.player.ign}</th>
               </tr>
             </thead>
             <tbody>
@@ -181,7 +181,7 @@ function Header({ career, photo, align }: { career: Career; photo: string | null
         <TeamLogo team={career.currentTeam} size="xl" />
       )}
       <div className="min-w-0">
-        <Link href={`/players/${career.player.id}`} className="block truncate font-heading text-xl font-extrabold hover:text-primary sm:text-3xl">
+        <Link href={`/players/${career.player.id}`} className="block truncate font-heading text-xl hover:text-primary sm:text-3xl">
           {career.player.ign}
         </Link>
         {career.currentTeam && <TeamLink team={career.currentTeam} size="xs" />}
@@ -193,7 +193,7 @@ function Header({ career, photo, align }: { career: Career; photo: string | null
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <div className="font-heading text-2xl font-bold">{value}</div>
+      <div className="font-heading text-2xl">{value}</div>
       <div className="truncate text-[11px] text-muted-foreground">{label}</div>
     </div>
   );

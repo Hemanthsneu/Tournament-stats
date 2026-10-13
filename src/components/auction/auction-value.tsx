@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Crown, Gem, TrendingUp } from "lucide-react";
+import { Crown, Gem, TrendingUp } from "@/components/icons";
 import { SectionTitle } from "@/components/page-header";
 import { TeamLink, TeamLogo } from "@/components/team";
 import { credits } from "@/lib/auction";
@@ -58,7 +58,7 @@ export function AuctionValue({ idx, auction, lots, teams }: { idx: LeagueIndex; 
           </div>
         )}
         <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-primary">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <TrendingUp className="size-4" /> Team spend
           </div>
           <ul className="mt-3 space-y-2 text-sm">
@@ -77,7 +77,7 @@ export function AuctionValue({ idx, auction, lots, teams }: { idx: LeagueIndex; 
       <div className="overflow-x-auto rounded-xl border bg-card">
         <table className="w-full min-w-max text-sm tabular">
           <thead>
-            <tr className="border-b text-xs uppercase text-muted-foreground">
+            <tr className="border-b text-xs text-muted-foreground">
               {["Player", "Team", "Price", ...(hasGames ? ["Games", "Kills", "Revives", "MVP", "MVP / 100 cr"] : [])].map((h) => (
                 <th key={h} className="px-3 py-2.5 text-left font-medium">
                   {h}
@@ -118,18 +118,18 @@ export function AuctionValue({ idx, auction, lots, teams }: { idx: LeagueIndex; 
 function Highlight({ icon, title, player, playerId, team, value, note }: { icon: React.ReactNode; title: string; player?: string; playerId: string; team: ReturnType<LeagueIndex["teamById"]["get"]> | null; value: string; note: string }) {
   return (
     <div className="rounded-xl border bg-card p-4">
-      <div className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-primary">
+      <div className="flex items-center gap-1 text-xs text-muted-foreground">
         {icon} {title}
       </div>
       <div className="mt-3 flex items-center gap-3">
         <TeamLogo team={team ?? null} size="md" />
         <div className="min-w-0 flex-1">
-          <Link href={`/players/${playerId}`} className="block truncate font-heading text-lg font-bold hover:text-primary">
+          <Link href={`/players/${playerId}`} className="block truncate font-heading text-lg hover:text-primary">
             {player}
           </Link>
           <div className="truncate text-xs text-muted-foreground">{team?.name}</div>
         </div>
-        <div className="font-heading text-2xl font-bold tabular">{value}</div>
+        <div className="text-2xl font-medium tabular">{value}</div>
       </div>
       <p className="mt-2 text-[11px] text-muted-foreground">{note}</p>
     </div>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BadgeCheck, Gavel, LogOut } from "lucide-react";
+import { BadgeCheck, Gavel, LogOut } from "@/components/icons";
 import { ActionButton } from "@/components/admin/action-form";
 import { ClaimForm } from "@/components/account/claim-form";
 import { ProfileForm } from "@/components/account/profile-form";
@@ -94,7 +94,7 @@ export default async function MePage() {
             ["Titles", career.totals.titles],
           ].map(([label, value]) => (
             <div key={label}>
-              <div className="font-heading text-2xl font-bold tabular">{value}</div>
+              <div className="text-2xl font-medium tabular">{value}</div>
               <div className="text-xs text-muted-foreground">{label}</div>
             </div>
           ))}

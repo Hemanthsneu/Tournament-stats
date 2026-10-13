@@ -28,12 +28,12 @@ export default async function TeamsPage() {
               <Link key={team.id} href={`/teams/${team.id}`} className="flex items-center gap-4 rounded-xl border bg-card p-4 transition hover:border-primary/50">
                 <TeamLogo team={team} size="lg" />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-heading text-lg font-bold">{team.name}</div>
+                  <div className="truncate font-heading text-lg">{team.name}</div>
                   <div className="text-xs text-muted-foreground">
                     {inSeasons.map((s) => `S${s.number}`).join(" · ") || "No seasons yet"}
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground tabular">
-                    {wins}W – {games.length - wins}L{titles > 0 && <span className="ml-2 text-primary">🏆 × {titles}</span>}
+                    {wins}W – {games.length - wins}L{titles > 0 && <span className="ml-2 text-primary">{titles}× champion</span>}
                   </div>
                 </div>
               </Link>

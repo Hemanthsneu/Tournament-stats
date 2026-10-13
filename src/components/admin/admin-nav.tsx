@@ -17,14 +17,14 @@ const LINKS = [
 export function AdminNav() {
   const pathname = usePathname();
   return (
-    <nav className="flex gap-1 overflow-x-auto text-sm">
+    <nav className="flex gap-5 overflow-x-auto text-sm [scrollbar-width:none]">
       {LINKS.map((l) => {
         const active = l.href === "/admin" ? pathname === "/admin" : pathname.startsWith(l.href);
         return (
           <Link
             key={l.href}
             href={l.href}
-            className={cn("rounded-md px-3 py-1.5 text-muted-foreground hover:bg-accent hover:text-foreground", active && "bg-accent text-foreground")}
+            className={cn("shrink-0 py-1 text-muted-foreground transition-colors hover:text-foreground", active && "text-foreground")}
           >
             {l.label}
           </Link>

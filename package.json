@@ -17,6 +17,7 @@
     "admin:remove": "tsx --env-file=.env.local scripts/admin.ts remove"
   },
   "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
     "class-variance-authority": "^0.7.1",

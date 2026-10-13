@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, AtSign, BadgeCheck, CirclePlay, Gavel, Swords, Trophy } from "lucide-react";
+import { ArrowRight, AtSign, BadgeCheck, CirclePlay, Gavel, Swords, Trophy } from "@/components/icons";
 import { FilterPills } from "@/components/filter-pills";
 import { EmptyState, SectionTitle } from "@/components/page-header";
 import { TeamLink, TeamLogo } from "@/components/team";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { credits } from "@/lib/auction";
 import { loadCommunity, profileMap, verifiedSet } from "@/lib/community";
@@ -38,30 +37,30 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
     .filter((x) => x.auction);
 
   return (
-    <div className="space-y-10">
-      <section className="flex flex-wrap items-center gap-5 rounded-2xl border bg-gradient-to-br from-primary/10 via-card to-card p-6">
+    <div className="space-y-16">
+      <section className="flex flex-wrap items-end gap-x-10 gap-y-8">
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo} alt="" className="size-20 rounded-xl border object-cover" />
+          <img src={photo} alt={`${player.ign}`} className="size-24 rounded-2xl object-cover" />
         ) : (
           <TeamLogo team={currentTeam} size="xl" />
         )}
         <div className="min-w-0 flex-1">
-          <h1 className="flex flex-wrap items-center gap-2 text-3xl font-extrabold">
-            {player.ign}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             {verified && (
-              <Badge className="gap-1" title="This player has claimed their profile">
-                <BadgeCheck /> Verified
-              </Badge>
+              <span className="inline-flex items-center gap-1 rounded-full bg-win-soft px-2 py-0.5 font-medium text-win" title="This player has claimed their profile">
+                <BadgeCheck className="size-3.5" /> Verified
+              </span>
             )}
-            {profile?.role && <Badge variant="secondary">{profile.role}</Badge>}
-          </h1>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+            {profile?.role && <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">{profile.role}</span>}
+          </div>
+          <h1 className="mt-2 text-5xl leading-none sm:text-6xl">{player.ign}</h1>
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
             {currentTeam ? <TeamLink team={currentTeam} size="xs" /> : <span>Free agent</span>}
             {player.real_name && <span>{player.real_name}</span>}
             {player.bgmi_uid && <span className="font-mono text-xs">UID {player.bgmi_uid}</span>}
             {aliases.length > 0 && <span>formerly {aliases.map((a) => a.ign).join(", ")}</span>}
-            {totals.titles > 0 && <span className="text-primary">🏆 {totals.titles}× champion</span>}
+            {totals.titles > 0 && <span className="text-gold">{totals.titles}× champion</span>}
             {profile?.instagram && (
               <a href={`https://instagram.com/${profile.instagram}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-foreground">
                 <AtSign className="size-3.5" /> {profile.instagram}
@@ -73,20 +72,20 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
               </a>
             )}
           </div>
-          {profile?.bio && <p className="mt-2 max-w-xl text-sm text-muted-foreground">“{profile.bio}”</p>}
-          <div className="mt-3 flex flex-wrap gap-2">
+          {profile?.bio && <p className="mt-3 max-w-xl font-heading text-xl italic text-foreground/80">“{profile.bio}”</p>}
+          <div className="mt-4 flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
               <Link href={`/compare?a=${player.id}`}>
                 <Swords /> Compare
               </Link>
             </Button>
             {auctionHistory.map(({ lot, auction }) => (
-              <span key={lot.id} className="inline-flex items-center gap-1.5 rounded-md border bg-card px-2 py-1 text-xs">
-                <Gavel className="size-3.5 text-primary" /> {auction!.name}:{" "}
+              <span key={lot.id} className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
+                <Gavel className="size-3.5" /> {auction!.name}:{" "}
                 {lot.status === "sold" ? (
-                  <b>
+                  <span className="font-medium text-foreground">
                     {idx.teamById.get(lot.sold_team_id ?? "")?.name ?? "?"} · {credits(lot.sold_price ?? 0)}
-                  </b>
+                  </span>
                 ) : (
                   <span className="text-muted-foreground">unsold</span>
                 )}
@@ -94,7 +93,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
             ))}
           </div>
         </div>
-        <div className="grid grid-cols-5 gap-5 text-center">
+        <dl className="grid grid-cols-5 gap-6 sm:gap-8">
           {[
             ["Games", totals.games],
             ["Kills", totals.kills],
@@ -103,11 +102,11 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
             ["POTM", totals.potm],
           ].map(([label, value]) => (
             <div key={label}>
-              <div className="font-heading text-2xl font-bold tabular">{value}</div>
-              <div className="text-xs text-muted-foreground">{label}</div>
+              <dd className="text-2xl font-medium tabular">{value}</dd>
+              <dt className="mt-0.5 text-xs text-muted-foreground">{label}</dt>
             </div>
           ))}
-        </div>
+        </dl>
       </section>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -145,7 +144,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
           <div className="overflow-x-auto rounded-xl border bg-card">
             <table className="w-full min-w-max text-sm tabular">
               <thead>
-                <tr className="border-b text-xs uppercase text-muted-foreground">
+                <tr className="border-b text-xs text-muted-foreground">
                   {["Season", "Team", "Games", "Kills", "Revives", "Avg kills", "MVP", "POTM", "Team finish"].map((h) => (
                     <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
                   ))}
@@ -166,7 +165,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
                     <td className="px-4 py-2.5">{s.avgKills.toFixed(2)}</td>
                     <td className="px-4 py-2.5">{num(s.mvp, 0)}</td>
                     <td className="px-4 py-2.5">{s.potm}</td>
-                    <td className="px-4 py-2.5">{s.finish === "Champion" ? <Badge>Champion</Badge> : s.finish ?? "–"}</td>
+                    <td className="px-4 py-2.5">{s.finish === "Champion" ? <span className="rounded-full bg-gold-soft px-2 py-0.5 text-xs font-medium text-gold">Champion</span> : s.finish ?? "–"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -183,7 +182,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
           <div className="overflow-x-auto rounded-xl border bg-card">
             <table className="w-full min-w-max text-sm tabular">
               <thead>
-                <tr className="border-b text-xs uppercase text-muted-foreground">
+                <tr className="border-b text-xs text-muted-foreground">
                   {["Date", "Game", "Team", "Opponent", "Map", "Result", "Kills", "Revives"].map((h) => (
                     <th key={h} className="px-3 py-3 text-left font-medium">{h}</th>
                   ))}

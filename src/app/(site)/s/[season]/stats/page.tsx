@@ -75,13 +75,13 @@ export default async function StatsPage({ params, searchParams }: PageProps<"/s/
               { title: "Team: Most Kills", t: mostKills, v: mostKills?.kills },
               { title: "Team: Most Revives", t: mostRevives, v: mostRevives?.revives },
             ].map(({ title, t, v }) =>
-              t ? (
+              t && v ? (
                 <div key={title} className="flex items-center justify-between rounded-xl border bg-card p-4">
                   <div>
-                    <div className="text-xs font-semibold uppercase tracking-wider text-primary">{title}</div>
+                    <div className="text-xs text-muted-foreground">{title}</div>
                     <TeamLink team={t.team} size="md" className="mt-2 text-lg" />
                   </div>
-                  <div className="font-heading text-3xl font-bold tabular">{v}</div>
+                  <div className="text-3xl font-medium tabular">{v}</div>
                 </div>
               ) : null,
             )}

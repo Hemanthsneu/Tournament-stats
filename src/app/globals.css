@@ -9,9 +9,18 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
+  /* Editorial serif for page titles and hero numbers. */
   --font-heading: var(--font-display);
+  --font-display: var(--font-display);
+  /* Semantic pastels: solid tone for text, soft tone for backgrounds. */
   --color-win: var(--win);
+  --color-win-soft: var(--win-soft);
   --color-loss: var(--loss);
+  --color-loss-soft: var(--loss-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -50,94 +59,145 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Warm monochrome. Colour is reserved for meaning (win, loss, highlight, info). */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: #fbfbfa;
+  --foreground: #1c1b1a;
+  --card: #ffffff;
+  --card-foreground: #1c1b1a;
+  --popover: #ffffff;
+  --popover-foreground: #1c1b1a;
+  --primary: #1c1b1a;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f2ef;
+  --secondary-foreground: #1c1b1a;
+  --muted: #f3f2ef;
+  --muted-foreground: #787774;
+  --accent: #f1f0ec;
+  --accent-foreground: #1c1b1a;
+  --destructive: #9f2f2d;
+  --border: #eae9e5;
+  --input: #e2e1dc;
+  --ring: #a8a6a0;
+  --win: #346538;
+  --win-soft: #edf3ec;
+  --loss: #9f2f2d;
+  --loss-soft: #fdebec;
+  --gold: #8a5d00;
+  --gold-soft: #fbf3db;
+  --info: #1f6c9f;
+  --info-soft: #e1f3fe;
+  --chart-1: #1c1b1a;
+  --chart-2: #787774;
+  --chart-3: #346538;
+  --chart-4: #9f2f2d;
+  --chart-5: #1f6c9f;
+  --radius: 0.5rem;
+  --sidebar: #fbfbfa;
+  --sidebar-foreground: #1c1b1a;
+  --sidebar-primary: #1c1b1a;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f0ec;
+  --sidebar-accent-foreground: #1c1b1a;
+  --sidebar-border: #eae9e5;
+  --sidebar-ring: #a8a6a0;
 }
 
+/* Warm charcoal, used for the auction big screen (TV / stream). */
 .dark {
-  --background: oklch(0.14 0.012 265);
-  --foreground: oklch(0.96 0.005 265);
-  --card: oklch(0.18 0.014 265);
-  --card-foreground: oklch(0.96 0.005 265);
-  --popover: oklch(0.19 0.014 265);
-  --popover-foreground: oklch(0.96 0.005 265);
-  --primary: oklch(0.83 0.16 80);
-  --primary-foreground: oklch(0.2 0.03 265);
-  --secondary: oklch(0.24 0.014 265);
-  --secondary-foreground: oklch(0.96 0.005 265);
-  --muted: oklch(0.23 0.012 265);
-  --muted-foreground: oklch(0.7 0.015 265);
-  --accent: oklch(0.26 0.016 265);
-  --accent-foreground: oklch(0.96 0.005 265);
-  --destructive: oklch(0.68 0.2 22);
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 14%);
-  --ring: oklch(0.83 0.16 80 / 60%);
-  --win: oklch(0.76 0.16 155);
-  --loss: oklch(0.68 0.19 20);
-  --chart-1: oklch(0.83 0.16 80);
-  --chart-2: oklch(0.72 0.14 230);
-  --chart-3: oklch(0.76 0.16 155);
-  --chart-4: oklch(0.68 0.19 20);
-  --chart-5: oklch(0.7 0.15 300);
-  --sidebar: oklch(0.17 0.013 265);
-  --sidebar-foreground: oklch(0.96 0.005 265);
-  --sidebar-primary: oklch(0.83 0.16 80);
-  --sidebar-primary-foreground: oklch(0.2 0.03 265);
-  --sidebar-accent: oklch(0.26 0.016 265);
-  --sidebar-accent-foreground: oklch(0.96 0.005 265);
-  --sidebar-border: oklch(1 0 0 / 9%);
-  --sidebar-ring: oklch(0.83 0.16 80 / 60%);
+  --background: #121211;
+  --foreground: #ecebe8;
+  --card: #1a1a19;
+  --card-foreground: #ecebe8;
+  --popover: #1c1c1b;
+  --popover-foreground: #ecebe8;
+  --primary: #ecebe8;
+  --primary-foreground: #121211;
+  --secondary: #232321;
+  --secondary-foreground: #ecebe8;
+  --muted: #232321;
+  --muted-foreground: #9b9a96;
+  --accent: #262624;
+  --accent-foreground: #ecebe8;
+  --destructive: #e0827e;
+  --border: rgb(255 255 255 / 8%);
+  --input: rgb(255 255 255 / 12%);
+  --ring: #6b6a66;
+  --win: #8cc493;
+  --win-soft: rgb(140 196 147 / 12%);
+  --loss: #e0827e;
+  --loss-soft: rgb(224 130 126 / 12%);
+  --gold: #e0bd6a;
+  --gold-soft: rgb(224 189 106 / 12%);
+  --info: #86bde3;
+  --info-soft: rgb(134 189 227 / 12%);
+  --sidebar: #121211;
+  --sidebar-foreground: #ecebe8;
+  --sidebar-primary: #ecebe8;
+  --sidebar-primary-foreground: #121211;
+  --sidebar-accent: #262624;
+  --sidebar-accent-foreground: #ecebe8;
+  --sidebar-border: rgb(255 255 255 / 8%);
+  --sidebar-ring: #6b6a66;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
-  button:not(:disabled), [role="button"]:not(:disabled) {
-    cursor: pointer;
-  }
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
   }
-  h1, h2, h3 {
-    @apply font-heading tracking-tight;
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv11", "ss01";
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--foreground) 14%, transparent);
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  h1 {
+    @apply font-heading font-normal tracking-[-0.02em];
+    text-wrap: balance;
+  }
+  h2,
+  h3 {
+    @apply font-semibold tracking-[-0.01em];
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  /* The display serif ships in a single weight: never fake-bold it. */
+  .font-heading {
+    font-synthesis: none;
+    letter-spacing: -0.02em;
   }
 }
+
 @utility tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Gentle entrance for page content. Opacity only: a transform here would trap position:fixed
+   children (the auction big screen and the captain's mobile bid bar). */
+@keyframes rise {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@utility rise {
+  animation: rise 400ms ease-out backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
 }

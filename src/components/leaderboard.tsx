@@ -12,7 +12,7 @@ export function AwardCards({ rows, keys }: { rows: PlayerAgg[]; keys?: AwardKey[
   return (
     <div
       className={cn(
-        "grid gap-4 sm:grid-cols-2",
+        "grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2",
         awards.length === 3 ? "lg:grid-cols-3" : awards.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3 xl:grid-cols-5",
       )}
     >
@@ -20,39 +20,42 @@ export function AwardCards({ rows, keys }: { rows: PlayerAgg[]; keys?: AwardKey[
         const ranked = rankBy(rows, award.key).filter((r) => r[award.key] > 0);
         const [leader, ...rest] = ranked;
         return (
-          <div key={award.key} className="rounded-xl border bg-card p-4">
-            <div className="text-xs font-semibold uppercase tracking-wider text-primary">{award.title}</div>
+          <div key={award.key} className="bg-card p-5">
+            <div className="text-xs text-muted-foreground">{award.title}</div>
             {leader ? (
               <>
-                <div className="mt-3 flex items-center gap-3">
-                  <TeamLogo team={leader.team} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <Link href={`/players/${leader.player.id}`} className="block truncate font-heading text-lg font-bold hover:text-primary">
+                <div className="mt-4 flex items-end justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link href={`/players/${leader.player.id}`} className="block truncate font-heading text-3xl leading-none transition-colors hover:text-muted-foreground">
                       {leader.player.ign}
                     </Link>
-                    <div className="truncate text-xs text-muted-foreground">{leader.team?.name}</div>
+                    <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <TeamLogo team={leader.team} size="xs" />
+                      <span className="truncate">{leader.team?.name}</span>
+                    </div>
                   </div>
                   <div className="text-right">
-                    <div className="font-heading text-2xl font-bold tabular">{value(leader, award.key)}</div>
-                    <div className="text-[10px] uppercase text-muted-foreground">{award.stat}</div>
+                    <div className="text-2xl font-medium tabular">{value(leader, award.key)}</div>
+                    <div className="text-[11px] text-muted-foreground">{award.stat}</div>
                   </div>
                 </div>
-                <ol className="mt-3 space-y-1 border-t pt-2 text-sm">
-                  {rest.slice(0, 2).map((r, i) => (
-                    <li key={r.player.id} className="flex items-center gap-2 text-muted-foreground">
-                      <span className="w-4 text-xs">{i + 2}</span>
-                      <Link href={`/players/${r.player.id}`} className="flex-1 truncate hover:text-foreground">
-                        {r.player.ign}
-                      </Link>
-                      <span className="tabular">{value(r, award.key)}</span>
-                    </li>
-                  ))}
-                </ol>
+                {rest.length > 0 && (
+                  <ol className="mt-4 space-y-1.5 border-t pt-3 text-sm">
+                    {rest.slice(0, 2).map((r, i) => (
+                      <li key={r.player.id} className="flex items-center gap-2 text-muted-foreground">
+                        <span className="w-3 text-xs">{i + 2}</span>
+                        <Link href={`/players/${r.player.id}`} className="flex-1 truncate transition-colors hover:text-foreground">
+                          {r.player.ign}
+                        </Link>
+                        <span className="tabular">{value(r, award.key)}</span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
               </>
             ) : (
-              <p className="mt-3 text-sm text-muted-foreground">No games yet</p>
+              <p className="mt-4 text-sm text-muted-foreground">{rows.length ? "Not recorded yet" : "No games yet"}</p>
             )}
-            <p className="mt-2 text-[11px] text-muted-foreground">{award.description}</p>
           </div>
         );
       })}
@@ -70,25 +73,21 @@ const COLS: { key: AwardKey | "games"; label: string }[] = [
 ];
 
 export function PlayerTable({ rows, sortKey, sortHref }: { rows: PlayerAgg[]; sortKey: AwardKey; sortHref: (key: AwardKey) => string }) {
-  const ranked = sortKey === "avgKills" ? rankBy(rows, "avgKills") : rankBy(rows, sortKey);
+  const ranked = rankBy(rows, sortKey);
   return (
     <div className="overflow-x-auto rounded-xl border bg-card">
       <table className="w-full min-w-max text-sm tabular">
         <thead>
-          <tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">
-            <th className="py-3 pr-2 pl-4 text-left font-medium">#</th>
-            <th className="px-2 py-3 text-left font-medium">Player</th>
-            <th className="px-2 py-3 text-left font-medium">Team</th>
+          <tr className="border-b text-xs text-muted-foreground">
+            <th className="w-10 py-3 pl-4 text-left font-normal">#</th>
+            <th className="px-2 py-3 text-left font-normal">Player</th>
+            <th className="px-2 py-3 text-left font-normal">Team</th>
             {COLS.map((c) => (
-              <th key={c.key} className="px-2 py-3 text-center font-medium">
+              <th key={c.key} className="px-2.5 py-3 text-right font-normal last:pr-4">
                 {c.key === "games" ? (
                   c.label
                 ) : (
-                  <Link
-                    href={sortHref(c.key)}
-                    scroll={false}
-                    className={cn("hover:text-foreground", sortKey === c.key && "text-primary")}
-                  >
+                  <Link href={sortHref(c.key)} scroll={false} className={cn("transition-colors hover:text-foreground", sortKey === c.key && "text-foreground")}>
                     {c.label}
                     {sortKey === c.key && " ↓"}
                   </Link>
@@ -99,10 +98,10 @@ export function PlayerTable({ rows, sortKey, sortHref }: { rows: PlayerAgg[]; so
         </thead>
         <tbody>
           {ranked.map((r, i) => (
-            <tr key={r.player.id} className="border-b last:border-0 hover:bg-accent/40">
-              <td className="py-2.5 pr-2 pl-4 font-heading font-bold text-muted-foreground">{i + 1}</td>
+            <tr key={r.player.id} className="border-b transition-colors last:border-0 hover:bg-accent/50">
+              <td className="py-2.5 pl-4 text-muted-foreground">{i + 1}</td>
               <td className="px-2 py-2.5">
-                <Link href={`/players/${r.player.id}`} className="font-medium hover:text-primary">
+                <Link href={`/players/${r.player.id}`} className="font-medium transition-colors hover:text-muted-foreground">
                   {r.player.ign}
                 </Link>
               </td>
@@ -110,7 +109,7 @@ export function PlayerTable({ rows, sortKey, sortHref }: { rows: PlayerAgg[]; so
                 <TeamLink team={r.team} size="xs" short />
               </td>
               {COLS.map((c) => (
-                <td key={c.key} className={cn("px-2 py-2.5 text-center text-muted-foreground", sortKey === c.key && "font-semibold text-foreground")}>
+                <td key={c.key} className={cn("px-2.5 py-2.5 text-right text-muted-foreground last:pr-4", sortKey === c.key && "font-medium text-foreground")}>
                   {c.key === "games" ? r.games : value(r, c.key)}
                 </td>
               ))}
@@ -119,9 +118,7 @@ export function PlayerTable({ rows, sortKey, sortHref }: { rows: PlayerAgg[]; so
         </tbody>
       </table>
       {sortKey === "avgKills" && (
-        <p className="border-t px-4 py-2 text-xs text-muted-foreground">
-          Only players who played at least half of their team&apos;s games are ranked by average.
-        </p>
+        <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">Only players who played at least half of their team&apos;s games are ranked by average.</p>
       )}
     </div>
   );

@@ -2,18 +2,17 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Crosshair } from "lucide-react";
 import { AccountButton } from "@/components/account-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 const SEASON_LINKS = [
   { href: "", label: "Home" },
-  { href: "/table", label: "Points Table" },
+  { href: "/table", label: "Table" },
   { href: "/schedule", label: "Schedule" },
   { href: "/playoffs", label: "Playoffs" },
   { href: "/practice", label: "Practice" },
-  { href: "/stats", label: "Stats & Awards" },
+  { href: "/stats", label: "Stats" },
 ];
 
 const GLOBAL_LINKS = [
@@ -21,6 +20,15 @@ const GLOBAL_LINKS = [
   { href: "/players", label: "Players" },
   { href: "/hall-of-fame", label: "Hall of Fame" },
 ];
+
+export function Wordmark() {
+  return (
+    <Link href="/" className="flex items-baseline gap-1.5 leading-none">
+      <span className="font-heading text-[26px] italic">WOW</span>
+      <span className="text-sm font-medium text-muted-foreground">League</span>
+    </Link>
+  );
+}
 
 export function SiteNav({
   seasons,
@@ -52,24 +60,16 @@ export function SiteNav({
     href.split("/").length === 3 ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
-        <Link href="/" className="flex items-center gap-2 font-heading text-lg font-extrabold tracking-tight">
-          <span className="grid size-8 place-items-center rounded-md bg-primary text-primary-foreground">
-            <Crosshair className="size-5" />
-          </span>
-          <span>
-            WOW <span className="text-primary">League</span>
-          </span>
-        </Link>
-        <div className="ml-auto flex items-center gap-2">
-        {seasons.length > 0 && selected && (
-          <div>
+    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
+      <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
+        <Wordmark />
+        <div className="ml-auto flex items-center gap-1.5">
+          {seasons.length > 0 && selected && (
             <Select value={selected} onValueChange={onSeasonChange}>
-              <SelectTrigger size="sm" className="w-32 sm:w-36">
+              <SelectTrigger size="sm" className="max-w-44 border-transparent bg-transparent text-muted-foreground shadow-none hover:bg-accent hover:text-foreground dark:bg-transparent">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent align="end">
                 {seasons.map((s) => (
                   <SelectItem key={s.number} value={String(s.number)}>
                     {s.name}
@@ -78,25 +78,28 @@ export function SiteNav({
                 {section === "/stats" && <SelectItem value="all">All-time</SelectItem>}
               </SelectContent>
             </Select>
-          </div>
-        )}
-        <AccountButton />
+          )}
+          <AccountButton />
         </div>
       </div>
-      <nav className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-2 pb-2 text-sm [scrollbar-width:none]">
-        {links.map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            className={cn(
-              "shrink-0 rounded-md px-3 py-1.5 text-muted-foreground transition hover:bg-accent hover:text-foreground",
-              isActive(l.href) && "bg-accent text-foreground",
-            )}
-          >
-            {l.live && <span className="mr-1.5 inline-block size-2 animate-pulse rounded-full bg-loss" />}
-            {l.label}
-          </Link>
-        ))}
+      <nav className="mx-auto flex max-w-6xl gap-5 overflow-x-auto px-4 text-sm [scrollbar-width:none] sm:px-6" aria-label="Main">
+        {links.map((l) => {
+          const active = isActive(l.href);
+          return (
+            <Link
+              key={l.href}
+              href={l.href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "relative flex shrink-0 items-center gap-1.5 pt-1 pb-3 text-muted-foreground transition-colors hover:text-foreground",
+                active && "text-foreground after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-foreground",
+              )}
+            >
+              {l.live && <span className="size-1.5 animate-pulse rounded-full bg-loss" aria-label="live" />}
+              {l.label}
+            </Link>
+          );
+        })}
       </nav>
     </header>
   );

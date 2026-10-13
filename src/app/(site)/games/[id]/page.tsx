@@ -28,7 +28,9 @@ export default async function GamePage({ params }: PageProps<"/games/[id]">) {
   const potm = game.potm_player_id ? idx.playerById.get(game.potm_player_id) : null;
   const context =
     fixture.stage === "league"
-      ? `Round Robin ${fixture.round_robin} · Matchday ${fixture.matchday}`
+      ? fixture.matchday != null
+        ? `Round Robin ${fixture.round_robin} · Matchday ${fixture.matchday}`
+        : `Round Robin ${fixture.round_robin}`
       : STAGE_LABELS[fixture.stage];
   const back =
     fixture.type === "practice"

@@ -41,15 +41,18 @@ export function roundRobinMatchdays(teamIds: string[]): [string, string][][] {
 }
 
 /**
- * Builds the full official schedule: every pair plays every map once per round robin, grouped into
- * matchdays, plus empty best-of-3 playoff series (teams filled in later by planPlayoffs).
+ * Builds the full official schedule: every pair plays every map once per round robin, plus empty
+ * best-of-3 playoff series (teams filled in later by planPlayoffs). With `matchdays: false` the
+ * fixtures carry no matchday numbers (organizers place each game on a date themselves); the
+ * balanced round-robin order is kept as the suggested order.
  */
 export function generateSchedule(opts: {
   teamIds: string[];
   mapIds: string[];
   roundRobins: number;
+  matchdays?: boolean;
 }): PlannedFixture[] {
-  const { teamIds, mapIds, roundRobins } = opts;
+  const { teamIds, mapIds, roundRobins, matchdays: withMatchdays = true } = opts;
   if (teamIds.length < 2) throw new Error("Add at least 2 teams to the season first.");
   if (mapIds.length < 1) throw new Error("Add at least 1 map to the season first.");
   if (roundRobins < 1 || roundRobins > 3) throw new Error("Round robins must be 1, 2 or 3.");
@@ -70,7 +73,7 @@ export function generateSchedule(opts: {
         fixtures.push({
           stage: "league",
           round_robin: rr,
-          matchday,
+          matchday: withMatchdays ? matchday : null,
           sort_order: sortOrder++,
           team_a_id: a,
           team_b_id: b,

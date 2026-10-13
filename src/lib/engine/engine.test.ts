@@ -4,9 +4,11 @@ import {
   buildIndex,
   computeStandings,
   filterGames,
+  isCalendarSeason,
   leagueStandings,
   planPlayoffs,
   playoffSeries,
+  standingsMovement,
   teamFinish,
 } from "./league";
 import { playerCareer, playerLeaderboard, rankBy, suggestPotm } from "./players";
@@ -323,5 +325,50 @@ describe("players", () => {
 
     const board = playerLeaderboard(idx, filterGames(idx, { seasonId: s1.id, type: "official" }));
     expect(rankBy(board, "kills")[0].kills).toBeGreaterThan(0);
+  });
+});
+
+describe("calendar-planned seasons", () => {
+  it("generates fixtures without matchdays but keeps the balanced order", () => {
+    const fx = generateSchedule({ teamIds: ["A", "B", "C", "D"], mapIds: ["m1", "m2"], roundRobins: 1, matchdays: false });
+    const league = fx.filter((f) => f.stage === "league");
+    expect(league).toHaveLength(6);
+    expect(league.every((f) => f.matchday === null)).toBe(true);
+    expect(league.map((f) => f.sort_order)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(league.flatMap((f) => f.games)).toHaveLength(12);
+  });
+
+  it("orders games by date (unscheduled last) and numbers matches in that order", () => {
+    const { data, game } = league(["A", "B", "C"]);
+    game("A", "B", null, null);
+    game("A", "C", null, null);
+    game("B", "C", null, null);
+    for (const f of data.fixtures) f.matchday = null;
+    data.games[0].scheduled_at = null;
+    data.games[1].scheduled_at = "2026-11-08T14:00:00Z";
+    data.games[2].scheduled_at = "2026-11-07T14:00:00Z";
+    const idx = buildIndex(data);
+    expect(isCalendarSeason(idx, "s1")).toBe(true);
+    expect(filterGames(idx, { seasonId: "s1" }).map((v) => `${v.label}:${v.game.id}`)).toEqual(["Match 1:g3", "Match 2:g2", "Match 3:g1"]);
+  });
+
+  it("movement compares with the table before the latest match date", () => {
+    const { data, game } = league(["A", "B", "C"]);
+    game("B", "C", 11, 5); // day 1: B top
+    game("A", "C", 11, 3); // day 2
+    game("A", "B", 11, 2); // day 2: A goes top
+    for (const f of data.fixtures) f.matchday = null;
+    data.games[0].scheduled_at = "2026-11-07T14:00:00Z";
+    data.games[1].scheduled_at = "2026-11-08T14:00:00Z";
+    data.games[2].scheduled_at = "2026-11-08T15:00:00Z";
+    const move = standingsMovement(buildIndex(data), season);
+    expect(move.get("A")).toBeGreaterThan(0);
+    expect(move.get("B")).toBeLessThan(0);
+  });
+
+  it("matchday seasons are not calendar seasons", () => {
+    const { data, game } = league(["A", "B"]);
+    game("A", "B", null, null);
+    expect(isCalendarSeason(buildIndex(data), "s1")).toBe(false);
   });
 });

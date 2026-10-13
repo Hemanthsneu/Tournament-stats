@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { loadCommunity, matchDaysFor } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
 import { filterGames, seasonMaps, seasonTeams, type GameView } from "@/lib/engine/league";
 import { toZonedInput, tzLabel } from "@/lib/time";
@@ -17,8 +18,9 @@ const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default async function ScheduleAdmin({ params }: PageProps<"/admin/seasons/[id]/schedule">) {
   const { id } = await params;
-  const { idx } = await loadLeague(true);
+  const [{ idx }, community] = await Promise.all([loadLeague(true), loadCommunity()]);
   const season = idx.seasonById.get(id)!;
+  const calendarDays = matchDaysFor(community, id);
   const teams = seasonTeams(idx, id);
   const maps = seasonMaps(idx, id);
   const games = filterGames(idx, { seasonId: id, type: "official" });
@@ -92,10 +94,21 @@ export default async function ScheduleAdmin({ params }: PageProps<"/admin/season
           ) : (
             <ActionForm action={assignTimes.bind(null, id)} className="grid gap-3">
               <div className="grid grid-cols-2 gap-3">
-                <TextField label="Start date" name="start_date" type="date" required />
+                <TextField
+                  label="Start date"
+                  name="start_date"
+                  type="date"
+                  required={calendarDays.length === 0}
+                  hint={calendarDays.length ? "Optional with match days: starts on the first one" : undefined}
+                />
                 <TextField label="Time slots" name="slots" defaultValue="19:00, 19:40, 20:20, 21:00" hint="Comma-separated, 24h" required />
               </div>
-              <Field label="Match days">
+              {calendarDays.length > 0 && (
+                <Label className="flex items-center gap-2 rounded-md bg-muted/60 px-3 py-2 text-sm font-normal">
+                  <Checkbox name="use_match_days" defaultChecked /> Only on the season&apos;s {calendarDays.length} match days (from the calendar)
+                </Label>
+              )}
+              <Field label={calendarDays.length ? "Days of the week (when not using match days)" : "Match days"}>
                 <div className="flex flex-wrap gap-3">
                   {WEEKDAYS.map((d, i) => (
                     <Label key={d} className="flex items-center gap-1.5 text-sm font-normal">

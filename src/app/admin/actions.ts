@@ -389,9 +389,14 @@ export async function generateOfficialSchedule(seasonId: string, fd: FormData) {
 
 export async function assignTimes(seasonId: string, fd: FormData) {
   return run(async (db) => {
-    const start = text(fd, "start_date", { required: "Pick a start date." });
+    const useCalendar = fd.get("use_match_days") === "on";
+    const calendar = useCalendar
+      ? must(await db.from("season_match_days").select("day").eq("season_id", seasonId).order("day")).map((r) => r.day as string)
+      : [];
+    if (useCalendar && calendar.length === 0) throw new UserError("This season has no match days yet. Add them under Match days & availability.");
+    const start = String(fd.get("start_date") ?? "").trim() || calendar[0] || text(fd, "start_date", { required: "Pick a start date." });
     const weekdays = fd.getAll("weekday").map(Number);
-    if (weekdays.length === 0) throw new UserError("Tick at least one match day of the week.");
+    if (!useCalendar && weekdays.length === 0) throw new UserError("Tick at least one match day of the week.");
     const slots = text(fd, "slots", { required: "Enter at least one time slot." })
       .split(/[,\s]+/)
       .filter(Boolean);
@@ -404,15 +409,18 @@ export async function assignTimes(seasonId: string, fd: FormData) {
     const games = idx.views.filter((v) => v.season.id === seasonId && v.fixture.type === "official" && (!onlyUnplayed || !v.completed));
 
     let date = start;
-    const isMatchDay = (d: string) => weekdays.includes(new Date(`${d}T12:00:00Z`).getUTCDay());
+    const calendarSet = new Set(calendar);
+    const isMatchDay = (d: string) => (useCalendar ? calendarSet.has(d) : weekdays.includes(new Date(`${d}T12:00:00Z`).getUTCDay()));
     const nextDay = (d: string) => {
       const x = new Date(`${d}T12:00:00Z`);
       x.setUTCDate(x.getUTCDate() + 1);
       return x.toISOString().slice(0, 10);
     };
     const advance = () => {
-      do date = nextDay(date);
-      while (!isMatchDay(date));
+      do {
+        date = nextDay(date);
+        if (useCalendar && date > calendar[calendar.length - 1]) throw new UserError("Not enough match days for every game. Add more dates or more time slots per day.");
+      } while (!isMatchDay(date));
     };
     if (!isMatchDay(date)) advance();
 
@@ -570,5 +578,26 @@ export async function deletePracticeFixture(fixtureId: string) {
   return run(async (db) => {
     must(await db.from("fixtures").delete().eq("id", fixtureId).eq("type", "practice"));
     return "Practice deleted";
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Match days (calendar dates players answer before the auction)
+// ---------------------------------------------------------------------------
+
+export async function saveMatchDays(seasonId: string, fd: FormData) {
+  return run(async (db) => {
+    const days = [...new Set(fd.getAll("day").map(String))].filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d))).sort();
+    if (days.length > 120) throw new UserError("That's a lot of dates. Keep it to 120 or fewer.");
+    const label = (d: string) => {
+      const l = String(fd.get(`label_${d}`) ?? "").trim();
+      if (l.length > 40) throw new UserError(`Keep the label for ${d} under 40 characters.`);
+      return l || null;
+    };
+    const existing = must(await db.from("season_match_days").select("day").eq("season_id", seasonId)).map((r) => r.day as string);
+    const removed = existing.filter((d) => !days.includes(d));
+    if (removed.length) must(await db.from("season_match_days").delete().eq("season_id", seasonId).in("day", removed));
+    if (days.length) must(await db.from("season_match_days").upsert(days.map((day) => ({ season_id: seasonId, day, label: label(day) }))));
+    return `Saved ${days.length} match day${days.length === 1 ? "" : "s"}${removed.length ? ` (removed ${removed.length})` : ""}.`;
   });
 }

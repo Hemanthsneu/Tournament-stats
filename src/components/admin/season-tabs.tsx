@@ -11,6 +11,7 @@ export function SeasonTabs({ seasonId }: { seasonId: string }) {
     { href: base, label: "Settings & maps" },
     { href: `${base}/teams`, label: "Teams & rosters" },
     { href: `${base}/schedule`, label: "Schedule" },
+    { href: `${base}/availability`, label: "Match days & availability" },
   ];
   return (
     <div className="mb-6 flex gap-1 border-b">

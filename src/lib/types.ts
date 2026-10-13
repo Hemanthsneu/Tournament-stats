@@ -248,8 +248,29 @@ export interface PlayerAvailability {
   updated_at: string;
 }
 
+export type DateStatus = "yes" | "maybe" | "no";
+
+/** A calendar date the organizers picked for a season's games. */
+export interface SeasonMatchDay {
+  season_id: string;
+  /** YYYY-MM-DD */
+  day: string;
+  label: string | null;
+}
+
+/** A player's answer for one match day. */
+export interface DateAvailability {
+  player_id: string;
+  season_id: string;
+  day: string;
+  status: DateStatus;
+  updated_at: string;
+}
+
 export interface CommunityData {
   availability: PlayerAvailability[];
+  matchDays: SeasonMatchDay[];
+  dateAvailability: DateAvailability[];
   accounts: PlayerAccount[];
   profiles: PlayerProfile[];
   auctions: Auction[];

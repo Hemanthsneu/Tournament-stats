@@ -2,11 +2,12 @@ import { Gavel } from "@/components/icons";
 import { AuctionRoom, type RoomPlayer } from "@/components/auction/auction-room";
 import { AuctionValue } from "@/components/auction/auction-value";
 import { EmptyState } from "@/components/page-header";
-import { availabilityMap, featuredAuction, getViewer, loadCommunity, profileMap, verifiedSet } from "@/lib/community";
+import { availabilityMap, availabilitySeason, dateAnswers, featuredAuction, getViewer, loadCommunity, matchDaysFor, profileMap, verifiedSet } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
 import { filterGames, sortedSeasons } from "@/lib/engine/league";
 import { playerLeaderboard } from "@/lib/engine/players";
 import { createPublicClient } from "@/lib/supabase/server";
+import { dateKey } from "@/lib/time";
 import type { AuctionSnapshot, Team } from "@/lib/types";
 
 export const metadata = { title: "Player Auction" };
@@ -30,6 +31,10 @@ export default async function AuctionPage({ searchParams }: PageProps<"/auction"
   const profiles = profileMap(community);
   const verified = verifiedSet(community);
   const availability = availabilityMap(community);
+  // Match days of the auction's season (or the season players are currently answering for).
+  const datesSeasonId = auction.season_id ?? availabilitySeason(community, idx.data.seasons, dateKey(new Date().toISOString()))?.id;
+  const matchDays = matchDaysFor(community, datesSeasonId).map((d) => ({ day: d.day, label: d.label }));
+  const answers = dateAnswers(community, datesSeasonId);
   const career = new Map(playerLeaderboard(idx, filterGames(idx, { type: "official" })).map((r) => [r.player.id, r]));
   const latestSeason = sortedSeasons(idx.data).find((s) => s.id !== auction.season_id);
 
@@ -51,6 +56,7 @@ export default async function AuctionPage({ searchParams }: PageProps<"/auction"
       lastTeam: lastRoster ? idx.teamById.get(lastRoster.team_id)?.name ?? null : null,
       stats: c ? { games: c.games, kills: c.kills, revives: c.revives, mvp: c.mvp, potm: c.potm, avgKills: c.avgKills } : null,
       availability: availability.get(id) ?? null,
+      dates: answers.get(id) ?? {},
     };
   }
   const teams: Record<string, Team> = {};
@@ -66,6 +72,7 @@ export default async function AuctionPage({ searchParams }: PageProps<"/auction"
         auctionId={auction.id}
         initial={snapshot}
         players={players}
+        matchDays={matchDays}
         teams={teams}
         viewer={{ isAdmin: !!viewer?.isAdmin, captainTeamId, signedIn: !!viewer }}
         screen={sp.screen === "1"}

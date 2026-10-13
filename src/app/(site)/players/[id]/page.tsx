@@ -7,11 +7,11 @@ import { TeamLink } from "@/components/team";
 import { Button } from "@/components/ui/button";
 import { credits } from "@/lib/auction";
 import { AvailabilityBlock } from "@/components/availability";
-import { availabilityMap, loadCommunity, profileMap, verifiedSet } from "@/lib/community";
+import { availabilityMap, availabilitySeasonId, dateAnswers, loadCommunity, matchDaysFor, profileMap, verifiedSet } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
 import { playerCareer } from "@/lib/engine/players";
 import { num } from "@/lib/format";
-import { fmtDate } from "@/lib/time";
+import { dateKey, fmtDate } from "@/lib/time";
 import { onColor, teamColor } from "@/lib/team-colors";
 import { cn } from "@/lib/utils";
 import type { FixtureType } from "@/lib/types";
@@ -32,6 +32,11 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
   const aliases = idx.data.aliases.filter((a) => a.player_id === id);
   const profile = profileMap(community).get(id);
   const availability = availabilityMap(community).get(id);
+  // The season being answered may still be a draft (hidden here), so it's found from match days.
+  const availSeasonId = availabilitySeasonId(community, dateKey(new Date().toISOString()));
+  const availSeasonName = idx.seasonById.get(availSeasonId ?? "")?.name ?? "Next season";
+  const myDates = dateAnswers(community, availSeasonId).get(id);
+  const dates = availSeasonId && myDates ? { days: matchDaysFor(community, availSeasonId).map((d) => ({ day: d.day, label: d.label })), answers: myDates } : undefined;
   const verified = verifiedSet(community).has(id);
   const photo = profile?.photo_url ?? player.photo_url;
   const band = teamColor(currentTeam ?? log[0]?.team ?? null);
@@ -114,13 +119,13 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
         </div>
       </section>
 
-      {availability && availability.days.length > 0 && (
+      {((availability && availability.days.length > 0) || dates) && (
         <div className="flex flex-wrap items-start gap-x-8 gap-y-3 rounded-lg border bg-card px-5 py-4">
           <div>
             <div className="font-heading text-sm font-bold tracking-wide uppercase">When they play</div>
-            <p className="mt-0.5 text-xs text-muted-foreground">Shared by the player for captains and organizers.</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{dates ? `${availSeasonName} match days, shared by the player.` : "Shared by the player for captains and organizers."}</p>
           </div>
-          <AvailabilityBlock availability={availability} />
+          <AvailabilityBlock availability={availability} dates={dates} />
         </div>
       )}
 

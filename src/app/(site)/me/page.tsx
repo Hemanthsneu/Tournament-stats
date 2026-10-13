@@ -9,9 +9,10 @@ import { Panel } from "@/components/admin/fields";
 import { TeamLink } from "@/components/team";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { availabilityMap, getViewer, loadCommunity, profileMap } from "@/lib/community";
+import { availabilityMap, availabilitySeason, dateAnswers, getViewer, loadCommunity, matchDaysFor, profileMap } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
 import { playerCareer } from "@/lib/engine/players";
+import { dateKey } from "@/lib/time";
 import { setAuctionRegistration, signOutPlayer } from "./actions";
 
 export const metadata = { title: "My profile" };
@@ -20,6 +21,8 @@ export default async function MePage() {
   const viewer = await getViewer();
   if (!viewer) redirect("/login?next=/me");
   const [{ idx }, community] = await Promise.all([loadLeague(true), loadCommunity()]);
+  const today = dateKey(new Date().toISOString());
+  const availSeason = availabilitySeason(community, idx.data.seasons, today);
 
   const signOut = (
     <form action={signOutPlayer}>
@@ -166,7 +169,13 @@ export default async function MePage() {
         title="Your availability"
         description="When can you play? Captains see this on your auction card before they bid, so keep it honest and up to date."
       >
-        <AvailabilityForm availability={availabilityMap(community).get(player.id) ?? null} />
+        <AvailabilityForm
+          availability={availabilityMap(community).get(player.id) ?? null}
+          season={availSeason ? { id: availSeason.id, name: availSeason.name } : null}
+          matchDays={matchDaysFor(community, availSeason?.id).map((d) => ({ day: d.day, label: d.label }))}
+          answers={dateAnswers(community, availSeason?.id).get(player.id) ?? {}}
+          today={today}
+        />
       </Panel>
 
       <Panel title="Edit your profile" description="This shows on your public player page and your auction card. Your stats can only be changed by organizers.">

@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ActionResult } from "@/lib/admin";
 import { createSessionClient } from "@/lib/supabase/server";
-import { PLAYER_ROLES, type PlayerRole } from "@/lib/types";
+import { dateKey } from "@/lib/time";
+import { PLAYER_ROLES, type DateStatus, type PlayerRole } from "@/lib/types";
 
 async function player<T>(fn: (db: Awaited<ReturnType<typeof createSessionClient>>) => Promise<T>): Promise<ActionResult> {
   try {
@@ -85,7 +86,37 @@ export async function saveAvailability(fd: FormData) {
       updated_at: new Date().toISOString(),
     });
     if (error) throw new Error(error.message);
-    return days.length ? `Saved: ${days.length} day${days.length === 1 ? "" : "s"} a week` : "Saved (no days selected)";
+
+    // Answers for the season's match days. Past dates are left as they were.
+    const seasonId = String(fd.get("season_id") ?? "");
+    if (!seasonId) return days.length ? `Saved: ${days.length} day${days.length === 1 ? "" : "s"} a week` : "Saved (no days selected)";
+    let raw: unknown;
+    try {
+      raw = JSON.parse(String(fd.get("answers") ?? "{}"));
+    } catch {
+      throw new Error("Could not read your answers. Please try again.");
+    }
+    const today = dateKey(new Date().toISOString());
+    const { data: matchDays, error: mdError } = await db.from("season_match_days").select("day").eq("season_id", seasonId);
+    if (mdError) throw new Error(mdError.message);
+    const open = new Set((matchDays ?? []).map((d) => d.day as string).filter((d) => d >= today));
+    const answers = Object.entries(raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {}).filter(
+      (e): e is [string, DateStatus] => open.has(e[0]) && (e[1] === "yes" || e[1] === "maybe" || e[1] === "no"),
+    );
+    const cleared = [...open].filter((d) => !answers.some(([day]) => day === d));
+    if (cleared.length) {
+      const { error: delError } = await db.from("player_date_availability").delete().eq("player_id", playerId).eq("season_id", seasonId).in("day", cleared);
+      if (delError) throw new Error(delError.message);
+    }
+    if (answers.length) {
+      const now = new Date().toISOString();
+      const { error: upError } = await db
+        .from("player_date_availability")
+        .upsert(answers.map(([day, status]) => ({ player_id: playerId, season_id: seasonId, day, status, updated_at: now })));
+      if (upError) throw new Error(upError.message);
+    }
+    const yes = answers.filter(([, s]) => s === "yes").length;
+    return `Saved: available on ${yes} of ${open.size} upcoming match day${open.size === 1 ? "" : "s"}`;
   });
 }
 

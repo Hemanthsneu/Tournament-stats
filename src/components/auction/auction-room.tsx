@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { bidOptions, credits, lotBase, teamPurse } from "@/lib/auction";
 import { browserSupabase } from "@/lib/supabase/browser";
 import { teamColor } from "@/lib/team-colors";
-import type { AuctionLot, AuctionSnapshot, PlayerAvailability, Team } from "@/lib/types";
+import type { AuctionLot, AuctionSnapshot, DateStatus, PlayerAvailability, Team } from "@/lib/types";
 import { AvailabilityBlock } from "@/components/availability";
 import ClickSpark from "@/components/reactbits/ClickSpark";
 import DecryptedText from "@/components/reactbits/DecryptedText";
@@ -45,12 +45,15 @@ export interface RoomPlayer {
   lastTeam: string | null;
   stats: { games: number; kills: number; revives: number; mvp: number; potm: number; avgKills: number } | null;
   availability: PlayerAvailability | null;
+  /** Answers for the season's match days. */
+  dates: Record<string, DateStatus>;
 }
 
 interface Props {
   auctionId: string;
   initial: AuctionSnapshot;
   players: Record<string, RoomPlayer>;
+  matchDays: { day: string; label: string | null }[];
   teams: Record<string, Team>;
   viewer: { isAdmin: boolean; captainTeamId: string | null; signedIn: boolean };
   screen: boolean;
@@ -58,7 +61,7 @@ interface Props {
 
 type Result = { kind: "sold" | "unsold"; lot: AuctionLot; at: number };
 
-export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen }: Props) {
+export function AuctionRoom({ auctionId, initial, players, matchDays, teams, viewer, screen }: Props) {
   const sb = browserSupabase();
   const [snap, setSnap] = useState(initial);
   const [now, setNow] = useState(() => Date.parse(initial.now));
@@ -345,7 +348,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
                 <StatChips player={player} />
                 <div className="mt-5 rounded-lg bg-white/5 p-3">
                   <div className="mb-1.5 font-heading text-xs font-bold tracking-widest text-muted-foreground uppercase">Availability</div>
-                  <AvailabilityBlock availability={player.availability} />
+                  <AvailabilityBlock availability={player.availability} dates={matchDays.length ? { days: matchDays, answers: player.dates } : undefined} />
                 </div>
 
                 <div className="mt-6 flex flex-wrap items-end gap-6">
@@ -583,7 +586,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
       </section>
 
       {/* Scouting board: availability + form for everyone still to come */}
-      {!screen && <ScoutingBoard auctionId={auctionId} lots={snap.lots} players={players} canShortlist={!!viewer.captainTeamId} />}
+      {!screen && <ScoutingBoard auctionId={auctionId} lots={snap.lots} players={players} matchDays={matchDays} canShortlist={!!viewer.captainTeamId} />}
     </div>
   );
 }

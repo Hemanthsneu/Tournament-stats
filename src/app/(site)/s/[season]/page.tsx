@@ -185,7 +185,7 @@ export default async function SeasonHome({ params }: PageProps<"/s/[season]">) {
     { id: "hof", tone: "gold", icon: "pan", eyebrow: "All seasons", title: "Hall of Fame", text: "Champions, career leaders and single-game records from every season.", href: "/hall-of-fame", cta: "Explore" },
   );
 
-  const words = [...new Set([season.name, ...maps.map((m) => m.name), "WOW mode", "Chicken dinner"])];
+  const words = [season.name, "WOW mode", "Winner winner chicken dinner"];
 
   return (
     <div className="space-y-14">

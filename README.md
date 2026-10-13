@@ -93,7 +93,8 @@ Editing or clearing any result recalculates everything, including the playoff br
    - The **rules**: purse, base price, bid steps, time per player, time added after each bid, the 3-2-1 countdown, auto-next, and the voice announcer.
    - The **teams and captains**. Captains need a claimed profile so they can log in and bid.
    - The **player pool**: "Add everyone with a claimed profile" (players can also register themselves on My profile), plus optional sets by career MVP.
-3. **Do a dry run first**, then use **Reset for a fresh start**.
+3. **Do a dry run first.** On the auction's page, **Duplicate as practice** makes a copy with the same rules, teams, captains and pool, labelled **PRACTICE**. A practice copy never creates rosters or counts in stats. Run it, then **Restart from scratch** as often as you like, or delete it.
+   - **Live-room controls:** **Stop auction** ends the session (the player on the block goes back to the pool, and results so far are kept). **Restart from scratch** puts everyone back in the pool.
 4. On the day, everyone opens **/auction**:
    - The organizer draws players at random and can pause, sell now, mark unsold, undo, and run an unsold round.
    - Captains bid from their phones.

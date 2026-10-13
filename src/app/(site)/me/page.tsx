@@ -62,9 +62,11 @@ export default async function MePage() {
   if (!player) redirect("/");
   const profile = profileMap(community).get(player.id) ?? null;
   const career = playerCareer(idx, player.id, "official");
+  // Practice runs only matter to their captains.
   const auctions = community.auctions
     .filter((a) => a.status !== "completed")
-    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+    .filter((a) => !a.is_practice || community.auctionTeams.some((t) => t.auction_id === a.id && t.captain_player_id === player.id))
+    .sort((a, b) => Number(a.is_practice) - Number(b.is_practice) || b.created_at.localeCompare(a.created_at));
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -104,14 +106,22 @@ export default async function MePage() {
         const lot = community.auctionLots.find((l) => l.auction_id === a.id && l.player_id === player.id);
         const team = captainOf ? idx.teamById.get(captainOf.team_id) ?? null : null;
         return (
-          <Panel key={a.id} title={a.name} description={<span className="inline-flex items-center gap-1"><Gavel className="size-4" /> Player auction</span>}>
+          <Panel
+            key={a.id}
+            title={a.name}
+            description={
+              <span className="inline-flex items-center gap-1">
+                <Gavel className="size-4" /> {a.is_practice ? "Practice auction (nothing here counts)" : "Player auction"}
+              </span>
+            }
+          >
             {captainOf ? (
               <div className="flex flex-wrap items-center gap-3">
                 <p className="text-sm">
                   You&apos;re the <b>captain</b> of <TeamLink team={team} size="xs" />. You bid for your squad in the live room.
                 </p>
                 <Button asChild className="ml-auto">
-                  <Link href="/auction">Open captain&apos;s room →</Link>
+                  <Link href={`/auction?id=${a.id}`}>Open captain&apos;s room →</Link>
                 </Button>
               </div>
             ) : lot ? (
@@ -128,7 +138,7 @@ export default async function MePage() {
                 </span>
                 <div className="ml-auto flex gap-2">
                   <Button asChild variant="outline" size="sm">
-                    <Link href="/auction">Watch the auction</Link>
+                    <Link href={`/auction?id=${a.id}`}>Watch the auction</Link>
                   </Button>
                   {lot.status === "pool" && a.registration_open && (
                     <ActionButton action={setAuctionRegistration.bind(null, a.id, false)} confirm="Leave the auction pool?" variant="ghost">

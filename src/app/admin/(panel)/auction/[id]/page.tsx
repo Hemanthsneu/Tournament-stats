@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BadgeCheck, Monitor, Radio, Trash2 } from "lucide-react";
+import { BadgeCheck, CopyPlus, Monitor, Radio, RotateCcw, Square, Trash2 } from "lucide-react";
 import { ActionButton, ActionForm } from "@/components/admin/action-form";
 import { Field, NativeSelect, Panel, TextField } from "@/components/admin/fields";
 import { TeamLogo } from "@/components/team";
@@ -19,11 +19,13 @@ import {
   addLots,
   autoAssignSets,
   deleteAuction,
+  duplicateAsPractice,
   finalizeAuction,
   removeAuctionTeam,
   removeLot,
   resetAuction,
   setCaptain,
+  stopAuction,
   updateAuctionSettings,
   updateLot,
 } from "../../../auction-actions";
@@ -63,22 +65,66 @@ export default async function AuctionSetup({ params }: PageProps<"/admin/auction
         </Link>
         <h1 className="text-2xl font-bold">{auction.name}</h1>
         <Badge variant="outline">{auction.status}</Badge>
+        {auction.is_practice && <Badge className="bg-sky-500/20 text-sky-300">PRACTICE</Badge>}
         <span className="text-sm text-muted-foreground">
           {teams.length} teams · {lots.length} players in pool · {done} done
         </span>
         <div className="ml-auto flex gap-2">
           <Button asChild variant="outline">
-            <Link href="/auction?screen=1" target="_blank">
+            <Link href={`/auction?id=${id}&screen=1`} target="_blank">
               <Monitor /> Big screen
             </Link>
           </Button>
           <Button asChild>
-            <Link href="/auction">
+            <Link href={`/auction?id=${id}`}>
               <Radio /> Open live room
             </Link>
           </Button>
         </div>
       </div>
+
+      <Panel
+        title={auction.is_practice ? "Practice auction controls" : "Practice, restart & stop"}
+        description={
+          auction.is_practice
+            ? "This is a practice run. Bid as much as you like, then restart it or delete it. It never creates rosters or counts in any stats."
+            : "Want a dry run first? Duplicate this auction as a practice copy with the same teams, captains and pool. The real auction stays untouched."
+        }
+        className={auction.is_practice ? "border-sky-500/40" : undefined}
+      >
+        <div className="flex flex-wrap gap-2">
+          {!auction.is_practice && (
+            <ActionButton action={duplicateAsPractice.bind(null, id)} variant="default" size="default">
+              <CopyPlus /> Duplicate as practice
+            </ActionButton>
+          )}
+          {live && (
+            <ActionButton
+              action={stopAuction.bind(null, id)}
+              confirm="Stop the auction now? The player on the block goes back to the pool. Results so far are kept."
+              variant="outline"
+              size="default"
+            >
+              <Square /> Stop auction
+            </ActionButton>
+          )}
+          {(auction.status !== "completed" || auction.is_practice) && (
+            <ActionButton
+              action={resetAuction.bind(null, id)}
+              confirm="Restart from scratch? Every player goes back to the pool and all bids are deleted."
+              variant="outline"
+              size="default"
+            >
+              <RotateCcw /> Restart from scratch
+            </ActionButton>
+          )}
+          {!live && (auction.is_practice || auction.status !== "completed") && (
+            <ActionButton action={deleteAuction.bind(null, id)} confirm={`Delete "${auction.name}" completely?`} variant="ghost" size="default" className="text-loss">
+              <Trash2 /> Delete {auction.is_practice ? "practice auction" : "auction"}
+            </ActionButton>
+          )}
+        </div>
+      </Panel>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Panel title="1. Rules & timer" description="You can change these any time, even during the auction.">
@@ -300,34 +346,18 @@ export default async function AuctionSetup({ params }: PageProps<"/admin/auction
         )}
       </Panel>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      {!auction.is_practice && (
         <Panel title="4. Finish" description="When everyone is sold or unsold, this adds the captains and their bought players to the season's rosters. Season 1 is never touched.">
           <ActionButton
             action={finalizeAuction.bind(null, id)}
-            confirm="Write the auction result into the season rosters now?"
+            confirm="Write the auction result into the season rosters now? (Do this once, after the real auction.)"
             variant="default"
             size="default"
           >
             Finish auction & create rosters
           </ActionButton>
         </Panel>
-        <Panel title="Rehearsal & cleanup">
-          <div className="flex flex-wrap gap-2">
-            <ActionButton
-              action={resetAuction.bind(null, id)}
-              confirm="Reset the auction? Every player goes back to the pool and all bids are deleted. Use this after a practice run."
-              variant="outline"
-            >
-              Reset for a fresh start
-            </ActionButton>
-            {!live && (
-              <ActionButton action={deleteAuction.bind(null, id)} confirm="Delete this auction completely?" variant="ghost" className="text-loss">
-                Delete auction
-              </ActionButton>
-            )}
-          </div>
-        </Panel>
-      </div>
+      )}
     </div>
   );
 }

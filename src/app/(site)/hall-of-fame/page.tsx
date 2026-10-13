@@ -65,7 +65,7 @@ export default async function HallOfFame() {
         const runner = final?.loserId ? idx.teamById.get(final.loserId) ?? null : null;
         const board = playerLeaderboard(idx, filterGames(idx, { seasonId: s.id, type: "official" }));
         const leader = leagueStandings(idx, s)[0];
-        const auction = community.auctions.find((a) => a.season_id === s.id);
+        const auction = community.auctions.find((a) => a.season_id === s.id && !a.is_practice);
         const recordBuy = auction
           ? community.auctionLots.filter((l) => l.auction_id === auction.id && l.status === "sold").sort((a, b) => (b.sold_price ?? 0) - (a.sold_price ?? 0))[0]
           : undefined;

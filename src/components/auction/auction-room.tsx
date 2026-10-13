@@ -12,6 +12,7 @@ import {
   Play,
   RotateCcw,
   Shuffle,
+  Square,
   Undo2,
   Volume2,
   VolumeX,
@@ -129,8 +130,10 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
   // ---- close the player when time runs out (any open screen may do it; the database decides)
   const closing = useRef<string | null>(null);
   useEffect(() => {
-    if (!expired || !lot || closing.current === lot.id) return;
-    closing.current = lot.id;
+    // Keyed per draw: after an undo/restart the same player can come up again.
+    const key = lot ? `${lot.id}:${lot.draw_no}` : "";
+    if (!expired || !lot || closing.current === key) return;
+    closing.current = key;
     const id = lot.id;
     setTimeout(async () => {
       const { data } = await sb.rpc("auction_close_lot", { p_lot_id: id });
@@ -180,7 +183,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
   useEffect(() => {
     if (!a || !lot || a.status !== "live" || !lot.ends_at) return;
     if (secs < 1 || secs > a.countdown_seconds) return;
-    const key = `${lot.id}:${lot.current_bid}:${secs}`;
+    const key = `${lot.id}:${lot.draw_no}:${lot.current_bid}:${secs}`;
     if (spoken.current === key) return;
     spoken.current = key;
     sfx("tick");
@@ -254,6 +257,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
         <Gavel className="size-6 text-primary" />
         <h1 className={cn("font-bold", screen ? "text-3xl sm:text-4xl" : "text-2xl sm:text-3xl")}>{a.name}</h1>
         <StatusBadge status={a.status} />
+        {a.is_practice && <Badge className="bg-sky-500/20 text-sky-300">PRACTICE</Badge>}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {a.voice_enabled && a.status !== "completed" && (
             <Button variant={announcer.enabled ? "default" : "outline"} size="sm" onClick={announcer.toggle}>
@@ -266,20 +270,26 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
                 <Maximize /> Fullscreen
               </Button>
               <Button asChild variant="ghost" size="sm">
-                <Link href="/auction">
+                <Link href={`/auction?id=${auctionId}`}>
                   <X /> Exit
                 </Link>
               </Button>
             </>
           ) : (
             <Button asChild variant="outline" size="sm">
-              <Link href="/auction?screen=1">
+              <Link href={`/auction?id=${auctionId}&screen=1`}>
                 <Monitor /> Big screen
               </Link>
             </Button>
           )}
         </div>
       </div>
+
+      {a.is_practice && !screen && (
+        <div className="rounded-lg border border-sky-500/40 bg-sky-500/10 px-4 py-2.5 text-sm">
+          <b>Practice auction.</b> Bid freely: nothing here creates rosters or counts in stats, and organizers can restart it any time.
+        </div>
+      )}
 
       <div className={cn("grid gap-6", !screen && "lg:grid-cols-[1fr_340px]", screen && "xl:grid-cols-[1fr_380px]")}>
         {/* Stage */}
@@ -433,6 +443,35 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
                   </Button>
                 </div>
               )}
+              {(a.status !== "completed" || a.is_practice) && (
+                <div className="mt-3 grid grid-cols-2 gap-2 border-t pt-3">
+                  {(a.status === "live" || a.status === "paused") && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() =>
+                        confirm("Stop the auction? The player on the block goes back to the pool. Results so far are kept.") &&
+                        call("auction_stop", { p_auction_id: a.id }, "Auction stopped")
+                      }
+                    >
+                      <Square /> Stop auction
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-loss"
+                    disabled={busy}
+                    onClick={() =>
+                      confirm(`Restart ${a.is_practice ? "this practice auction" : "the auction"} from scratch? Every player goes back to the pool and all bids are deleted.`) &&
+                      call("auction_reset", { p_auction_id: a.id }, "Restarted. Everyone is back in the pool.")
+                    }
+                  >
+                    <RotateCcw /> Restart from scratch
+                  </Button>
+                </div>
+              )}
               <p className="mt-3 text-[11px] text-muted-foreground">
                 {a.auto_next_seconds > 0 ? `Next player is drawn automatically ${a.auto_next_seconds}s after each result. ` : ""}
                 Settings, captains and the final roster step are in{" "}
@@ -446,7 +485,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
           {!viewer.signedIn && a.status !== "completed" && (
             <p className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
               Captain?{" "}
-              <Link href="/login?next=/auction" className="text-primary">
+              <Link href={`/login?next=${encodeURIComponent(`/auction?id=${auctionId}`)}`} className="text-primary">
                 Sign in
               </Link>{" "}
               to bid for your team.

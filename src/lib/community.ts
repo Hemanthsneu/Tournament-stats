@@ -56,11 +56,14 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   return { userId: user.id, email: user.email ?? null, playerId: (playerId as string | null) ?? null, isAdmin: !!isAdmin };
 });
 
-/** Most relevant auction to show: a running one, else the newest. */
+/** Most relevant auction to show: a running one (real first), else the newest real one, else a practice run. */
 export function featuredAuction(data: CommunityData): Auction | null {
-  const sorted = [...data.auctions].sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const sorted = [...data.auctions].sort((a, b) => Number(!!a.is_practice) - Number(!!b.is_practice) || b.created_at.localeCompare(a.created_at));
   return sorted.find((a) => a.status === "live" || a.status === "paused") ?? sorted[0] ?? null;
 }
+
+/** Auctions that count (practice runs never appear in history, records or value stats). */
+export const realAuctions = (data: CommunityData) => data.auctions.filter((a) => !a.is_practice);
 
 export function profileMap(data: CommunityData): Map<string, PlayerProfile> {
   return new Map(data.profiles.map((p) => [p.player_id, p]));

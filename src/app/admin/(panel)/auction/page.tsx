@@ -3,6 +3,8 @@ import { ActionForm } from "@/components/admin/action-form";
 import { Field, NativeSelect, Panel, TextField } from "@/components/admin/fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { loadCommunity } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
 import { sortedSeasons } from "@/lib/engine/league";
@@ -29,12 +31,13 @@ export default async function AuctionsAdmin() {
                     {a.name}
                   </Link>
                   <Badge variant="outline">{a.status}</Badge>
+                  {a.is_practice && <Badge className="bg-sky-500/20 text-sky-300">practice</Badge>}
                   <span className="text-sm text-muted-foreground">
                     {idx.seasonById.get(a.season_id ?? "")?.name ?? "No season"} · {community.auctionTeams.filter((t) => t.auction_id === a.id).length} teams ·{" "}
                     {lots.filter((l) => l.status === "sold").length}/{lots.length} sold
                   </span>
                   <Button asChild size="sm" variant="outline" className="ml-auto">
-                    <Link href="/auction">Live room</Link>
+                    <Link href={`/auction?id=${a.id}`}>Live room</Link>
                   </Button>
                 </li>
               );
@@ -59,6 +62,13 @@ export default async function AuctionsAdmin() {
               ))}
             </NativeSelect>
           </Field>
+          <Label className="flex items-start gap-2 text-sm font-normal">
+            <Checkbox name="is_practice" className="mt-0.5" />
+            <span>
+              Practice auction: labelled PRACTICE, never creates rosters, and you can restart it as often as you like. (Tip: on a real
+              auction&apos;s page, &quot;Duplicate as practice&quot; copies its teams, captains and pool.)
+            </span>
+          </Label>
           <Button type="submit">Create auction</Button>
         </ActionForm>
       </Panel>

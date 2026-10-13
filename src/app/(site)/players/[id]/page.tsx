@@ -34,7 +34,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
   const photo = profile?.photo_url ?? player.photo_url;
   const auctionHistory = community.auctionLots
     .filter((l) => l.player_id === id && (l.status === "sold" || l.status === "unsold"))
-    .map((l) => ({ lot: l, auction: community.auctions.find((a) => a.id === l.auction_id) }))
+    .map((l) => ({ lot: l, auction: community.auctions.find((a) => a.id === l.auction_id && !a.is_practice) }))
     .filter((x) => x.auction);
 
   return (

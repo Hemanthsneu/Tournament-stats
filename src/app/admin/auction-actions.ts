@@ -28,10 +28,16 @@ function parseIncrements(raw: string): AuctionIncrement[] {
 export async function createAuction(fd: FormData) {
   let id: string | null = null;
   const res = await run(async (db) => {
+    const practice = fd.get("is_practice") === "on";
     const row = must(
       await db
         .from("auctions")
-        .insert({ name: text(fd, "name", { required: "Give the auction a name." }), season_id: optionalText(fd, "season_id") })
+        .insert({
+          name: text(fd, "name", { required: "Give the auction a name." }),
+          season_id: optionalText(fd, "season_id"),
+          is_practice: practice,
+          registration_open: !practice,
+        })
         .select("id")
         .single(),
     );
@@ -72,12 +78,61 @@ export async function updateAuctionSettings(auctionId: string, fd: FormData) {
 
 export async function deleteAuction(auctionId: string): Promise<ActionResult> {
   const res = await run(async (db) => {
-    const a = must(await db.from("auctions").select("status").eq("id", auctionId).single());
-    if (a.status === "live" || a.status === "paused") throw new UserError("Pause and reset the auction before deleting it.");
+    const a = must(await db.from("auctions").select("status, is_practice").eq("id", auctionId).single());
+    if (a.status === "live" || a.status === "paused") throw new UserError("Stop the auction first, then delete it.");
+    if (a.status === "completed" && !a.is_practice) throw new UserError("This auction already created the season rosters, so it's kept as history.");
     must(await db.from("auctions").delete().eq("id", auctionId));
   });
   if (res.ok) redirect("/admin/auction");
   return res;
+}
+
+/**
+ * Copies an auction's rules, teams, captains and pool into a new practice run (clearly labelled,
+ * never writes rosters), so the real auction stays untouched.
+ */
+export async function duplicateAsPractice(auctionId: string): Promise<ActionResult> {
+  let id: string | null = null;
+  const res = await run(async (db) => {
+    const a = must(await db.from("auctions").select("*").eq("id", auctionId).single());
+    const copy = must(
+      await db
+        .from("auctions")
+        .insert({
+          season_id: a.season_id,
+          name: `${a.name.replace(/ \(practice\)$/i, "")} (practice)`,
+          is_practice: true,
+          registration_open: false,
+          purse: a.purse,
+          base_price: a.base_price,
+          min_buys: a.min_buys,
+          max_buys: a.max_buys,
+          increments: a.increments,
+          timer_seconds: a.timer_seconds,
+          bid_extend_seconds: a.bid_extend_seconds,
+          countdown_seconds: a.countdown_seconds,
+          auto_next_seconds: a.auto_next_seconds,
+          voice_enabled: a.voice_enabled,
+        })
+        .select("id")
+        .single(),
+    );
+    id = copy.id;
+    const teams = must(await db.from("auction_teams").select("team_id, captain_player_id, sort_order").eq("auction_id", auctionId));
+    if (teams.length) must(await db.from("auction_teams").insert(teams.map((t) => ({ ...t, auction_id: copy.id }))));
+    const lots = must(await db.from("auction_lots").select("player_id, set_name, set_order, base_price").eq("auction_id", auctionId));
+    if (lots.length) must(await db.from("auction_lots").insert(lots.map((l) => ({ ...l, auction_id: copy.id }))));
+  });
+  if (res.ok && id) redirect(`/admin/auction/${id}`);
+  return res;
+}
+
+/** Ends the live session without finishing: the player on the block goes back to the pool. */
+export async function stopAuction(auctionId: string) {
+  return run(async (db) => {
+    must(await db.rpc("auction_stop", { p_auction_id: auctionId }));
+    return "Auction stopped. Results so far are kept; draw a player to continue.";
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -224,30 +279,12 @@ export async function autoAssignSets(auctionId: string, fd: FormData) {
 // Rehearsal reset & finish
 // ---------------------------------------------------------------------------
 
-/** Puts every player back in the pool and deletes all bids, for a dry run before the real auction. */
+/** Starts over: every player back in the pool and all bids deleted (great after a practice run). */
 export async function resetAuction(auctionId: string) {
   return run(async (db) => {
-    const a = must(await db.from("auctions").select("status").eq("id", auctionId).single());
-    if (a.status === "completed") throw new UserError("This auction is finished and written to the season rosters.");
-    must(await db.from("auctions").update({ current_lot_id: null, status: "setup", paused_remaining_ms: null }).eq("id", auctionId));
-    must(await db.from("auction_bids").delete().eq("auction_id", auctionId));
-    must(
-      await db
-        .from("auction_lots")
-        .update({
-          status: "pool",
-          round: 1,
-          draw_no: null,
-          current_bid: null,
-          current_team_id: null,
-          ends_at: null,
-          sold_price: null,
-          sold_team_id: null,
-          closed_at: null,
-        })
-        .eq("auction_id", auctionId),
-    );
-    return "Auction reset. Every player is back in the pool.";
+    const { error } = await db.rpc("auction_reset", { p_auction_id: auctionId });
+    if (error) throw new UserError(error.message);
+    return "Restarted. Every player is back in the pool.";
   });
 }
 

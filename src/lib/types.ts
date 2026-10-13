@@ -182,6 +182,8 @@ export interface Auction {
   countdown_seconds: number;
   auto_next_seconds: number;
   voice_enabled: boolean;
+  /** Practice runs: same room, clearly labelled, never written to rosters or stats. */
+  is_practice: boolean;
   current_lot_id: string | null;
   paused_remaining_ms: number | null;
   created_at: string;

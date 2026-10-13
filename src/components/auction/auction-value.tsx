@@ -11,7 +11,7 @@ import type { Auction, AuctionLot, AuctionTeam } from "@/lib/types";
 /** Price vs performance for every bought player, once the auction's season has games. */
 export function AuctionValue({ idx, auction, lots, teams }: { idx: LeagueIndex; auction: Auction; lots: AuctionLot[]; teams: AuctionTeam[] }) {
   const sold = lots.filter((l) => l.status === "sold" && l.sold_price != null);
-  if (sold.length === 0) return null;
+  if (sold.length === 0 || auction.is_practice) return null;
   const season = auction.season_id ? idx.seasonById.get(auction.season_id) : undefined;
   const board = season ? new Map(playerLeaderboard(idx, filterGames(idx, { seasonId: season.id, type: "official" })).map((r) => [r.player.id, r])) : new Map();
   const rows = sold

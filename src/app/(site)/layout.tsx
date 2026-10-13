@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { SiteNav } from "@/components/site-nav";
+import { ScoreTicker } from "@/components/score-ticker";
+import { SiteNav, Wordmark } from "@/components/site-nav";
 import { featuredAuction, loadCommunity } from "@/lib/community";
-import { currentSeason, sortedSeasons } from "@/lib/engine/league";
+import { compareGames, currentSeason, filterGames, sortedSeasons, upNext } from "@/lib/engine/league";
 import { loadLeague } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
@@ -11,28 +12,39 @@ export default async function SiteLayout({ children }: LayoutProps<"/">) {
   const seasons = sortedSeasons(idx.data).filter((s) => s.status !== "draft");
   const current = currentSeason(idx.data);
   const auction = featuredAuction(await loadCommunity());
+  // Ticker: latest results (newest first) then the next games.
+  const official = current ? filterGames(idx, { seasonId: current.id, type: "official" }) : [];
+  const recent = official
+    .filter((g) => g.completed)
+    .sort((a, b) => (b.game.scheduled_at ?? "").localeCompare(a.game.scheduled_at ?? "") || compareGames(b, a))
+    .slice(0, 8);
+  const ticker = [...upNext(official, 4), ...recent];
   return (
     <>
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-card focus:px-3 focus:py-2 focus:text-sm">
         Skip to content
       </a>
       {demo && (
-        <div className="border-b bg-gold-soft px-4 py-1.5 text-center text-xs text-gold">Demo data. Connect Supabase to show your real league.</div>
+        <div className="bg-hot px-4 py-1.5 text-center text-xs font-medium text-white">Demo data. Connect Supabase to show your real league.</div>
       )}
       <SiteNav
         seasons={seasons.map((s) => ({ number: s.number, name: s.name }))}
         current={current?.number ?? null}
         auction={auction ? { live: auction.status === "live" || auction.status === "paused" } : null}
       />
-      <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 pt-10 pb-24 sm:px-6 sm:pt-14">
+      <ScoreTicker games={ticker} />
+      <main id="main" className="mx-auto w-full max-w-7xl flex-1 px-4 pt-8 pb-24 sm:px-6 sm:pt-10">
         <div className="rise">{children}</div>
       </main>
-      <footer className="border-t">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-6 text-xs text-muted-foreground sm:px-6">
-          <span>WOW League · BGMI WOW mode</span>
-          <Link href="/admin" className="transition-colors hover:text-foreground">
-            Organizers
-          </Link>
+      <footer className="bg-brand text-brand-foreground">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-8 text-sm sm:px-6">
+          <Wordmark />
+          <div className="flex items-center gap-6 text-white/60">
+            <span>BGMI · WOW mode league</span>
+            <Link href="/admin" className="transition-colors hover:text-white">
+              Organizers
+            </Link>
+          </div>
         </div>
       </footer>
     </>

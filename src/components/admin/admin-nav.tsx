@@ -24,7 +24,7 @@ export function AdminNav() {
           <Link
             key={l.href}
             href={l.href}
-            className={cn("shrink-0 py-1 text-muted-foreground transition-colors hover:text-foreground", active && "text-foreground")}
+            className={cn("shrink-0 py-1 font-heading text-[15px] font-semibold tracking-wide text-white/65 uppercase transition-colors hover:text-white", active && "text-white underline decoration-hot decoration-[3px] underline-offset-[10px]")}
           >
             {l.label}
           </Link>

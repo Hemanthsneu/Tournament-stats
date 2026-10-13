@@ -23,13 +23,13 @@ export function AccountButton() {
 
   if (!isSupabaseConfigured || signedIn === null) return null;
   return signedIn ? (
-    <Button asChild size="sm" variant="ghost">
+    <Button asChild size="sm" variant="ghost" className="text-white hover:bg-white/10 hover:text-white">
       <Link href="/me">
         <UserRound /> <span className="hidden sm:inline">Profile</span>
       </Link>
     </Button>
   ) : (
-    <Button asChild size="sm">
+    <Button asChild size="sm" className="bg-hot font-semibold text-white hover:bg-hot/90">
       <Link href={`/login?next=${encodeURIComponent(pathname)}`}>Sign in</Link>
     </Button>
   );

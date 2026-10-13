@@ -50,13 +50,13 @@ export default async function PlayersPage({ searchParams }: PageProps<"/players"
         <div className="overflow-x-auto rounded-xl border bg-card">
           <table className="w-full min-w-max text-sm tabular">
             <thead>
-              <tr className="border-b text-xs text-muted-foreground">
-                <th className="px-4 py-3 text-left font-normal">Player</th>
-                <th className="px-2 py-3 text-left font-normal">{latest ? `${latest.name} team` : "Team"}</th>
-                <th className="px-2 py-3 text-center font-normal">Games</th>
-                <th className="px-2 py-3 text-center font-normal">Kills</th>
-                <th className="px-2 py-3 text-center font-normal">Revives</th>
-                <th className="px-4 py-3 text-center font-normal">POTM</th>
+              <tr className="border-b bg-muted/50 font-heading text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
+                <th className="px-4 py-3 text-left font-semibold">Player</th>
+                <th className="px-2 py-3 text-left font-semibold">{latest ? `${latest.name} team` : "Team"}</th>
+                <th className="px-2 py-3 text-center font-semibold">Games</th>
+                <th className="px-2 py-3 text-center font-semibold">Kills</th>
+                <th className="px-2 py-3 text-center font-semibold">Revives</th>
+                <th className="px-4 py-3 text-center font-semibold">POTM</th>
               </tr>
             </thead>
             <tbody>

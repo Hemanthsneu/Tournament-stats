@@ -288,11 +288,11 @@ export default async function AuctionSetup({ params }: PageProps<"/admin/auction
           <div className="overflow-x-auto">
             <table className="w-full min-w-max text-sm">
               <thead>
-                <tr className="border-b text-xs text-muted-foreground">
-                  <th className="px-2 py-2 text-left font-normal">Player</th>
-                  <th className="px-2 py-2 text-left font-normal">Career</th>
-                  <th className="px-2 py-2 text-left font-normal">Set / order / base price</th>
-                  <th className="px-2 py-2 text-left font-normal">Status</th>
+                <tr className="border-b bg-muted/50 font-heading text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
+                  <th className="px-2 py-2 text-left font-semibold">Player</th>
+                  <th className="px-2 py-2 text-left font-semibold">Career</th>
+                  <th className="px-2 py-2 text-left font-semibold">Set / order / base price</th>
+                  <th className="px-2 py-2 text-left font-semibold">Status</th>
                   <th className="px-2 py-2" />
                 </tr>
               </thead>

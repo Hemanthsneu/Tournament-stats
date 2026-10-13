@@ -31,7 +31,7 @@ function cell(row: StandingRow, key: string): React.ReactNode {
     case "l":
       return row.lost;
     case "pts":
-      return <span className="font-semibold text-foreground">{row.points}</span>;
+      return <span className="font-heading text-lg font-bold text-foreground">{row.points}</span>;
     case "nrr":
       return <span className={tone(row.nrr)}>{signed(row.nrr)}</span>;
     case "rw":
@@ -84,11 +84,11 @@ export function StandingsTable({
     <div className="overflow-x-auto rounded-xl border bg-card">
       <table className="w-full min-w-max text-sm tabular">
         <thead>
-          <tr className="border-b text-xs text-muted-foreground">
-            <th className="sticky left-0 z-10 w-12 bg-card py-3 pl-4 text-left font-normal">#</th>
-            <th className="sticky left-12 z-10 bg-card px-2 py-3 text-left font-normal">Team</th>
+          <tr className="border-b bg-muted/50 font-heading text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
+            <th className="sticky left-0 z-10 w-12 bg-muted py-3 pl-4 text-left font-semibold">#</th>
+            <th className="sticky left-12 z-10 bg-muted px-2 py-3 text-left font-semibold">Team</th>
             {cols.map((c) => (
-              <th key={c.key} className={cn("px-2.5 py-3 text-right font-normal", c.key === "form" && "text-left", c.key === "pts" && "pr-4 text-foreground")}>
+              <th key={c.key} className={cn("px-2.5 py-3 text-right font-semibold", c.key === "form" && "text-left", c.key === "pts" && "pr-4 text-foreground")}>
                 <Tooltip>
                   <TooltipTrigger className="cursor-help">{c.label}</TooltipTrigger>
                   <TooltipContent>{c.hint}</TooltipContent>
@@ -106,14 +106,14 @@ export function StandingsTable({
                 key={row.team.id}
                 className={cn(
                   "border-b transition-colors last:border-0 hover:bg-accent/50",
-                  playoffLines && row.position === 4 && rows.length > 4 && "border-b-foreground/15",
+                  playoffLines && row.position === 4 && rows.length > 4 && "border-b-2 border-b-hot",
                 )}
               >
                 <td className="sticky left-0 z-10 bg-card py-3 pl-4">
                   <span
                     className={cn(
-                      "grid size-6 place-items-center rounded-md text-xs font-medium",
-                      top2 ? "bg-gold-soft text-gold" : top4 ? "bg-info-soft text-info" : "text-muted-foreground",
+                      "grid size-6 place-items-center rounded-[5px] font-heading text-sm font-bold",
+                      top2 ? "bg-brand text-white" : top4 ? "bg-info-soft text-info" : "text-muted-foreground",
                     )}
                   >
                     {row.position}
@@ -161,10 +161,13 @@ export function StandingsLegend({ playoffLines }: { playoffLines?: boolean }) {
       {playoffLines && (
         <>
           <span className="inline-flex items-center gap-2">
-            <span className="size-2.5 rounded-sm bg-gold-soft ring-1 ring-gold/30" /> Top 2 · Qualifier 1
+            <span className="size-2.5 rounded-sm bg-brand" /> Top 2 · Qualifier 1
           </span>
           <span className="inline-flex items-center gap-2">
             <span className="size-2.5 rounded-sm bg-info-soft ring-1 ring-info/30" /> 3rd–4th · Eliminator
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="h-0.5 w-4 bg-hot" /> Playoff line
           </span>
         </>
       )}

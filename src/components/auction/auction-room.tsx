@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { bidOptions, credits, lotBase, teamPurse } from "@/lib/auction";
 import { browserSupabase } from "@/lib/supabase/browser";
+import { teamColor } from "@/lib/team-colors";
 import type { AuctionLot, AuctionSnapshot, Team } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { countWord, useAnnouncer } from "./announcer";
@@ -294,7 +295,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
         {/* Stage */}
         <section
           className={cn(
-            "relative overflow-hidden rounded-2xl border bg-card p-6 sm:p-10",
+            "dark relative overflow-hidden rounded-xl bg-brand p-6 text-foreground sm:p-10",
             inCountdown && "border-loss/70",
           )}
         >
@@ -315,7 +316,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
                   )}
                   <span className="text-muted-foreground">Base {credits(lotBase(a, lot))}</span>
                 </div>
-                <h2 className={cn("mt-2 font-heading leading-none", screen ? "text-6xl sm:text-7xl" : "text-4xl sm:text-5xl")}>
+                <h2 className={cn("mt-2 font-heading leading-[0.9] font-extrabold uppercase", screen ? "text-7xl sm:text-8xl" : "text-5xl sm:text-7xl")}>
                   {player.ign}
                 </h2>
                 {player.lastTeam && <p className="mt-1 text-sm text-muted-foreground">Last played for {player.lastTeam}</p>}
@@ -509,14 +510,18 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
 
       {/* Teams */}
       <section className={cn(screen && "mt-6")}>
-        <h2 className="mb-3 text-lg font-semibold">Teams</h2>
+        <h2 className="mb-3 font-heading text-xl font-bold tracking-wide uppercase">Teams</h2>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {snap.teams.map((t) => {
             const team = teams[t.team_id] ?? null;
             const purse = teamPurse(a, t);
             const squad = snap.lots.filter((l) => l.status === "sold" && l.sold_team_id === t.team_id).sort((x, y) => (x.closed_at ?? "").localeCompare(y.closed_at ?? ""));
             return (
-              <div key={t.team_id} className={cn("rounded-xl border bg-card p-4 transition", leader === t.team_id && "border-primary ring-2 ring-primary/40")}>
+              <div
+                key={t.team_id}
+                className={cn("overflow-hidden rounded-lg border border-t-[5px] bg-card p-4 transition", leader === t.team_id && "ring-2 ring-hot")}
+                style={{ borderTopColor: teamColor(team) }}
+              >
                 <div className="flex items-center gap-3">
                   <TeamLogo team={team} size="md" />
                   <div className="min-w-0 flex-1">
@@ -556,7 +561,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
       {!screen && (
         <section className="grid gap-4 md:grid-cols-2">
           <div className="rounded-xl border bg-card p-4">
-            <h2 className="mb-2 font-semibold">Still in the pool ({pool.length})</h2>
+            <h2 className="mb-3 font-heading text-lg font-bold tracking-wide uppercase">Still in the pool ({pool.length})</h2>
             {pool.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nobody left.</p>
             ) : (
@@ -579,7 +584,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
             )}
           </div>
           <div className="rounded-xl border bg-card p-4">
-            <h2 className="mb-2 font-semibold">Unsold ({unsold.length})</h2>
+            <h2 className="mb-3 font-heading text-lg font-bold tracking-wide uppercase">Unsold ({unsold.length})</h2>
             {unsold.length === 0 ? (
               <p className="text-sm text-muted-foreground">None so far.</p>
             ) : (

@@ -5,6 +5,7 @@ import { buildSampleData } from "./sample-data";
 import { buildIndex, currentSeason, seasonByNumber, type LeagueIndex } from "./engine/league";
 import { isSupabaseConfigured } from "./supabase/config";
 import { createPublicClient } from "./supabase/server";
+import { withTeamColors } from "./team-colors";
 import type { LeagueData, Season } from "./types";
 
 const PAGE = 1000;
@@ -93,6 +94,7 @@ export const loadLeague = cache(async (includeDrafts: boolean = false): Promise<
   } else {
     data = await fetchLeagueData();
   }
+  data = { ...data, teams: withTeamColors(data.teams) };
   return { idx: buildIndex(includeDrafts ? data : withoutDrafts(data)), demo };
 });
 

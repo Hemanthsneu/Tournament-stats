@@ -100,13 +100,25 @@ export async function deletePlayer(playerId: string) {
 // Teams
 // ---------------------------------------------------------------------------
 
+function teamColorFrom(fd: FormData): string | null {
+  const c = optionalText(fd, "color");
+  if (!c) return null;
+  if (!/^#[0-9a-fA-F]{6}$/.test(c)) throw new UserError("Team colour must look like #1d428a.");
+  return c.toLowerCase();
+}
+
 export async function createTeam(fd: FormData) {
   return run(async (db) => {
     const name = text(fd, "name", { required: "Enter a team name." });
     const team = must(
       await db
         .from("teams")
-        .insert({ name, tag: text(fd, "tag", { required: "Enter a short tag (e.g. CV)." }).toUpperCase(), logo_url: optionalText(fd, "logo_url") })
+        .insert({
+          name,
+          tag: text(fd, "tag", { required: "Enter a short tag (e.g. CV)." }).toUpperCase(),
+          logo_url: optionalText(fd, "logo_url"),
+          ...(fd.has("color") ? { color: teamColorFrom(fd) } : {}),
+        })
         .select("id")
         .single(),
     );
@@ -125,6 +137,7 @@ export async function updateTeam(teamId: string, fd: FormData) {
           name: text(fd, "name", { required: "Enter a team name." }),
           tag: text(fd, "tag", { required: "Enter a tag." }).toUpperCase(),
           logo_url: optionalText(fd, "logo_url"),
+          ...(fd.has("color") ? { color: teamColorFrom(fd) } : {}),
         })
         .eq("id", teamId),
     );

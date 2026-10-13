@@ -9,9 +9,13 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  /* Editorial serif for page titles and hero numbers. */
+  /* Condensed sports display face for headlines, scores and stats. */
   --font-heading: var(--font-display);
   --font-display: var(--font-display);
+  --color-brand: var(--brand);
+  --color-brand-2: var(--brand-2);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-hot: var(--hot);
   /* Semantic pastels: solid tone for text, soft tone for backgrounds. */
   --color-win: var(--win);
   --color-win-soft: var(--win-soft);
@@ -59,86 +63,95 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Warm monochrome. Colour is reserved for meaning (win, loss, highlight, info). */
+/* Sports media palette: ink navy + signal red on a crisp light grey. */
 :root {
-  --background: #fbfbfa;
-  --foreground: #1c1b1a;
+  --background: #f2f4f7;
+  --foreground: #0b132b;
   --card: #ffffff;
-  --card-foreground: #1c1b1a;
+  --card-foreground: #0b132b;
   --popover: #ffffff;
-  --popover-foreground: #1c1b1a;
-  --primary: #1c1b1a;
+  --popover-foreground: #0b132b;
+  --primary: #0c1a3a;
   --primary-foreground: #ffffff;
-  --secondary: #f3f2ef;
-  --secondary-foreground: #1c1b1a;
-  --muted: #f3f2ef;
-  --muted-foreground: #787774;
-  --accent: #f1f0ec;
-  --accent-foreground: #1c1b1a;
-  --destructive: #9f2f2d;
-  --border: #eae9e5;
-  --input: #e2e1dc;
-  --ring: #a8a6a0;
-  --win: #346538;
-  --win-soft: #edf3ec;
-  --loss: #9f2f2d;
-  --loss-soft: #fdebec;
-  --gold: #8a5d00;
-  --gold-soft: #fbf3db;
-  --info: #1f6c9f;
-  --info-soft: #e1f3fe;
-  --chart-1: #1c1b1a;
-  --chart-2: #787774;
-  --chart-3: #346538;
-  --chart-4: #9f2f2d;
-  --chart-5: #1f6c9f;
+  --secondary: #e8ebf0;
+  --secondary-foreground: #0b132b;
+  --muted: #eef1f5;
+  --muted-foreground: #5b6476;
+  --accent: #e9edf3;
+  --accent-foreground: #0b132b;
+  --destructive: #d61f2c;
+  --border: #e0e4ea;
+  --input: #d5dae2;
+  --ring: #1d4ed8;
+  /* Brand surfaces (header, hero bands, broadcast stage). */
+  --brand: #0c1a3a;
+  --brand-2: #13265a;
+  --brand-foreground: #ffffff;
+  --hot: #e4002b;
+  --win: #0f8a5f;
+  --win-soft: #e3f5ed;
+  --loss: #d61f2c;
+  --loss-soft: #fde8ea;
+  --gold: #a76f00;
+  --gold-soft: #fff4d6;
+  --info: #1d4ed8;
+  --info-soft: #e5edff;
+  --chart-1: #0c1a3a;
+  --chart-2: #e4002b;
+  --chart-3: #0f8a5f;
+  --chart-4: #a76f00;
+  --chart-5: #1d4ed8;
   --radius: 0.5rem;
-  --sidebar: #fbfbfa;
-  --sidebar-foreground: #1c1b1a;
-  --sidebar-primary: #1c1b1a;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0b132b;
+  --sidebar-primary: #0c1a3a;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f1f0ec;
-  --sidebar-accent-foreground: #1c1b1a;
-  --sidebar-border: #eae9e5;
-  --sidebar-ring: #a8a6a0;
+  --sidebar-accent: #e9edf3;
+  --sidebar-accent-foreground: #0b132b;
+  --sidebar-border: #e0e4ea;
+  --sidebar-ring: #1d4ed8;
 }
 
-/* Warm charcoal, used for the auction big screen (TV / stream). */
+/* Broadcast navy, used for the auction big screen. */
 .dark {
-  --background: #121211;
-  --foreground: #ecebe8;
-  --card: #1a1a19;
-  --card-foreground: #ecebe8;
-  --popover: #1c1c1b;
-  --popover-foreground: #ecebe8;
-  --primary: #ecebe8;
-  --primary-foreground: #121211;
-  --secondary: #232321;
-  --secondary-foreground: #ecebe8;
-  --muted: #232321;
-  --muted-foreground: #9b9a96;
-  --accent: #262624;
-  --accent-foreground: #ecebe8;
-  --destructive: #e0827e;
-  --border: rgb(255 255 255 / 8%);
-  --input: rgb(255 255 255 / 12%);
-  --ring: #6b6a66;
-  --win: #8cc493;
-  --win-soft: rgb(140 196 147 / 12%);
-  --loss: #e0827e;
-  --loss-soft: rgb(224 130 126 / 12%);
-  --gold: #e0bd6a;
-  --gold-soft: rgb(224 189 106 / 12%);
-  --info: #86bde3;
-  --info-soft: rgb(134 189 227 / 12%);
-  --sidebar: #121211;
-  --sidebar-foreground: #ecebe8;
-  --sidebar-primary: #ecebe8;
-  --sidebar-primary-foreground: #121211;
-  --sidebar-accent: #262624;
-  --sidebar-accent-foreground: #ecebe8;
-  --sidebar-border: rgb(255 255 255 / 8%);
-  --sidebar-ring: #6b6a66;
+  --background: #070f24;
+  --foreground: #f1f4fa;
+  --card: #0e1a3a;
+  --card-foreground: #f1f4fa;
+  --popover: #101d40;
+  --popover-foreground: #f1f4fa;
+  --primary: #ffffff;
+  --primary-foreground: #0c1a3a;
+  --secondary: #16254d;
+  --secondary-foreground: #f1f4fa;
+  --muted: #16254d;
+  --muted-foreground: #9aa6c2;
+  --accent: #1a2b57;
+  --accent-foreground: #f1f4fa;
+  --destructive: #ff4d5e;
+  --border: rgb(255 255 255 / 10%);
+  --input: rgb(255 255 255 / 14%);
+  --ring: #5b8cff;
+  --brand: #0c1a3a;
+  --brand-2: #13265a;
+  --brand-foreground: #ffffff;
+  --hot: #ff2d4b;
+  --win: #34d399;
+  --win-soft: rgb(52 211 153 / 14%);
+  --loss: #ff5a6a;
+  --loss-soft: rgb(255 90 106 / 14%);
+  --gold: #fbbf24;
+  --gold-soft: rgb(251 191 36 / 14%);
+  --info: #7aa2ff;
+  --info-soft: rgb(122 162 255 / 14%);
+  --sidebar: #0e1a3a;
+  --sidebar-foreground: #f1f4fa;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #0c1a3a;
+  --sidebar-accent: #1a2b57;
+  --sidebar-accent-foreground: #f1f4fa;
+  --sidebar-border: rgb(255 255 255 / 10%);
+  --sidebar-ring: #5b8cff;
 }
 
 @layer base {
@@ -151,31 +164,29 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "cv11", "ss01";
+    overflow-x: clip;
   }
   ::selection {
-    background: color-mix(in oklab, var(--foreground) 14%, transparent);
+    background: color-mix(in oklab, var(--hot) 22%, transparent);
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
   h1 {
-    @apply font-heading font-normal tracking-[-0.02em];
-    text-wrap: balance;
+    @apply font-heading text-balance uppercase;
   }
   h2,
   h3 {
-    @apply font-semibold tracking-[-0.01em];
+    @apply font-semibold tracking-tight;
     text-wrap: balance;
   }
   p {
     text-wrap: pretty;
   }
-  /* The display serif ships in a single weight: never fake-bold it. */
   .font-heading {
-    font-synthesis: none;
-    letter-spacing: -0.02em;
+    font-weight: 700;
+    letter-spacing: -0.005em;
   }
 }
 
@@ -200,4 +211,10 @@
   .rise {
     animation: none;
   }
+}
+
+/* Edge-to-edge band inside the centered page container. */
+@utility full-bleed {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
 }

@@ -25,6 +25,8 @@ export interface Team {
   name: string;
   tag: string;
   logo_url: string | null;
+  /** Hex colour picked by organizers; filled with a distinct default when loading. */
+  color?: string | null;
 }
 
 export interface SeasonTeam {

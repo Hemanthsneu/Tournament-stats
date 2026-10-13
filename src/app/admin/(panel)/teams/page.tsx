@@ -1,4 +1,5 @@
 import { ActionButton, ActionForm } from "@/components/admin/action-form";
+import { ColorField } from "@/components/admin/color-field";
 import { Panel, TextField } from "@/components/admin/fields";
 import { TeamLogo } from "@/components/team";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,8 @@ export default async function TeamsAdmin() {
         <ActionForm action={createTeam} resetOnSuccess className="grid gap-3">
           <TextField label="Team name" name="name" required />
           <TextField label="Tag (2–5 letters)" name="tag" maxLength={5} required />
-          <TextField label="Logo URL (optional)" name="logo_url" placeholder="https://…" hint="Square PNG/JPG works best. Without a logo, a coloured tag badge is shown." />
+          <TextField label="Logo URL (optional)" name="logo_url" placeholder="https://…" hint="Square PNG/JPG works best. Without a logo, the team colour badge is shown." />
+          <ColorField />
           <Button type="submit">Create team</Button>
         </ActionForm>
       </Panel>
@@ -29,7 +31,7 @@ export default async function TeamsAdmin() {
             const inSeasons = seasons.filter((s) => idx.data.seasonTeams.some((st) => st.season_id === s.id && st.team_id === t.id));
             return (
               <li key={t.id} className="py-3">
-                <ActionForm action={updateTeam.bind(null, t.id)} className="grid items-end gap-2 sm:grid-cols-[auto_1fr_6rem_1fr_auto_auto]">
+                <ActionForm action={updateTeam.bind(null, t.id)} className="grid items-end gap-x-2 gap-y-3 sm:grid-cols-[auto_1fr_6rem_1fr_auto_auto]">
                   <TeamLogo team={t} size="md" />
                   <TextField label="Name" name="name" defaultValue={t.name} required />
                   <TextField label="Tag" name="tag" defaultValue={t.tag} maxLength={5} required />
@@ -40,6 +42,9 @@ export default async function TeamsAdmin() {
                   <ActionButton action={deleteTeam.bind(null, t.id)} confirm={`Delete ${t.name}? Only works if it never played in a season.`} variant="ghost" className="text-loss">
                     Delete
                   </ActionButton>
+                  <div className="sm:col-span-6">
+                    <ColorField defaultValue={t.color} />
+                  </div>
                 </ActionForm>
                 <p className="mt-1 text-xs text-muted-foreground">{inSeasons.map((s) => s.name).join(", ") || "Not in any season yet"}</p>
               </li>

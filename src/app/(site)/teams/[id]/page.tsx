@@ -7,6 +7,7 @@ import { loadLeague } from "@/lib/data";
 import { filterGames, leagueStandings, sortedSeasons, teamFinish, upNext } from "@/lib/engine/league";
 import { gamesForTeam, teamRoster } from "@/lib/engine/players";
 import { signed } from "@/lib/format";
+import { onColor, teamColor } from "@/lib/team-colors";
 
 export async function generateMetadata({ params }: PageProps<"/teams/[id]">) {
   const { idx } = await loadLeague();
@@ -29,6 +30,7 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
   const revives = played.reduce((a, g) => a + (g.teamA?.id === id ? g.revivesA : g.revivesB), 0);
   const finishes = seasons.map((s) => ({ season: s, finish: teamFinish(idx, s.id, id), row: leagueStandings(idx, s).find((r) => r.team.id === id) }));
   const titles = finishes.filter((f) => f.finish === "Champion").length;
+  const band = teamColor(team);
   const latestSeason = seasons[0];
   const upcoming = latestSeason ? upNext(official.filter((g) => g.season.id === latestSeason.id), 4) : [];
   const recent = [...played].reverse().slice(0, 6);
@@ -48,28 +50,38 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
 
   return (
     <div className="space-y-16">
-      <section className="flex flex-wrap items-end gap-x-10 gap-y-8">
-        <TeamLogo team={team} size="xl" />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm text-muted-foreground">
-            {team.tag} · {seasons.length} season{seasons.length === 1 ? "" : "s"}
-            {titles > 0 && <span className="ml-2 text-gold">{titles}× champion</span>}
-          </p>
-          <h1 className="mt-2 text-5xl leading-none sm:text-6xl">{team.name}</h1>
-        </div>
-        <dl className="grid grid-cols-4 gap-6 sm:gap-8">
-          {[
-            ["Games", played.length],
-            ["W–L", `${wins}–${played.length - wins}`],
-            ["Kills", kills],
-            ["Revives", revives],
-          ].map(([label, value]) => (
-            <div key={label}>
-              <dd className="text-2xl font-medium tabular">{value}</dd>
-              <dt className="mt-0.5 text-xs text-muted-foreground">{label}</dt>
+      <section className="full-bleed -mt-8 sm:-mt-10" style={{ background: band, color: onColor(band) }}>
+        <div className="mx-auto flex max-w-7xl flex-wrap items-end gap-6 px-4 pt-10 pb-8 sm:gap-8 sm:px-6 sm:pt-14">
+          {team.logo_url ? (
+            <TeamLogo team={team} size="xl" className="size-28 sm:size-36" />
+          ) : (
+            <div className="grid size-28 place-items-center rounded-xl bg-black/15 font-heading text-5xl font-extrabold italic sm:size-36 sm:text-6xl">{team.tag}</div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="font-heading text-sm font-semibold tracking-wide uppercase opacity-90">
+              {team.tag} · {seasons.length} season{seasons.length === 1 ? "" : "s"}
+              {titles > 0 && <span className="ml-2">· {titles}× champion</span>}
             </div>
-          ))}
-        </dl>
+            <h1 className="mt-2 text-6xl leading-[0.9] sm:text-8xl">{team.name}</h1>
+          </div>
+        </div>
+        <div className="bg-black/20">
+          <dl className="mx-auto flex max-w-7xl flex-wrap gap-x-10 gap-y-4 px-4 py-5 sm:px-6">
+            {[
+              ["Games", played.length],
+              ["Won", wins],
+              ["Lost", played.length - wins],
+              ["Win %", played.length ? `${Math.round((wins / played.length) * 100)}%` : "–"],
+              ["Kills", kills],
+              ["Revives", revives],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <dd className="font-heading text-4xl leading-none font-bold tabular">{value}</dd>
+                <dt className="mt-1 text-xs font-medium tracking-wide uppercase opacity-75">{label}</dt>
+              </div>
+            ))}
+          </dl>
+        </div>
       </section>
 
       <section>
@@ -77,7 +89,7 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
         <div className="overflow-x-auto rounded-xl border bg-card">
           <table className="w-full min-w-max text-sm tabular">
             <thead>
-              <tr className="border-b text-xs text-muted-foreground">
+              <tr className="border-b bg-muted/50 font-heading text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
                 {["Season", "Finish", "P", "W", "L", "Pts", "NRR", "Kills"].map((h) => (
                   <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
                 ))}
@@ -141,11 +153,11 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
             <div className="overflow-hidden rounded-xl border bg-card">
               <table className="w-full text-sm tabular">
                 <thead>
-                  <tr className="border-b text-xs text-muted-foreground">
-                    <th className="px-4 py-2 text-left font-normal">Player</th>
-                    <th className="px-2 py-2 text-center font-normal">Games</th>
-                    <th className="px-2 py-2 text-center font-normal">Kills</th>
-                    <th className="px-4 py-2 text-center font-normal">Revives</th>
+                  <tr className="border-b bg-muted/50 font-heading text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
+                    <th className="px-4 py-2 text-left font-semibold">Player</th>
+                    <th className="px-2 py-2 text-center font-semibold">Games</th>
+                    <th className="px-2 py-2 text-center font-semibold">Kills</th>
+                    <th className="px-4 py-2 text-center font-semibold">Revives</th>
                   </tr>
                 </thead>
                 <tbody>

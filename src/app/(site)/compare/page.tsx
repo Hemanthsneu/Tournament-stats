@@ -143,10 +143,10 @@ function Comparison({ A, B, photoA, photoB }: { A: Career; B: Career; photoA: st
         <div className="overflow-x-auto rounded-xl border bg-card">
           <table className="w-full min-w-max text-sm tabular">
             <thead>
-              <tr className="border-b text-xs text-muted-foreground">
-                <th className="px-4 py-2.5 text-left font-normal">Season</th>
-                <th className="px-4 py-2.5 text-left font-normal">{A.player.ign}</th>
-                <th className="px-4 py-2.5 text-left font-normal">{B.player.ign}</th>
+              <tr className="border-b bg-muted/50 font-heading text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
+                <th className="px-4 py-2.5 text-left font-semibold">Season</th>
+                <th className="px-4 py-2.5 text-left font-semibold">{A.player.ign}</th>
+                <th className="px-4 py-2.5 text-left font-semibold">{B.player.ign}</th>
               </tr>
             </thead>
             <tbody>

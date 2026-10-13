@@ -48,21 +48,22 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 function AdminShell({ email, children }: { email: string | null; children: React.ReactNode }) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
+      <header className="sticky top-0 z-40 bg-brand text-brand-foreground">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 sm:px-6">
-          <Link href="/admin" className="flex items-baseline gap-1.5 leading-none">
-            <span className="font-heading text-2xl italic">WOW</span>
-            <span className="text-sm font-medium text-muted-foreground">Admin</span>
+          <Link href="/admin" className="flex items-center gap-2 leading-none">
+            <span className="font-heading text-[26px] font-extrabold italic">WOW</span>
+            <span className="h-5 w-1 -skew-x-12 bg-hot" aria-hidden />
+            <span className="font-heading text-[15px] font-semibold tracking-[0.12em]">ADMIN</span>
           </Link>
           <AdminNav />
-          <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="ml-auto flex items-center gap-2 text-xs text-white/60">
             {email && <span className="hidden sm:inline">{email}</span>}
-            <Button asChild variant="ghost" size="sm">
+            <Button asChild variant="ghost" size="sm" className="text-white hover:bg-white/10 hover:text-white">
               <Link href="/">View site</Link>
             </Button>
             {email !== null && (
               <form action={signOut}>
-                <Button variant="outline" size="sm" type="submit">
+                <Button variant="outline" size="sm" type="submit" className="border-white/25 bg-transparent text-white hover:bg-white/10 hover:text-white">
                   Sign out
                 </Button>
               </form>

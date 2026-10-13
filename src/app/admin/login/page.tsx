@@ -11,9 +11,10 @@ export default function LoginPage() {
   return (
     <main className="grid flex-1 place-items-center px-4 py-16">
       <div className="w-full max-w-sm rounded-2xl border bg-card p-8">
-        <Link href="/" className="mb-8 flex items-baseline gap-1.5 leading-none">
-          <span className="font-heading text-[28px] italic">WOW</span>
-          <span className="text-sm font-medium text-muted-foreground">League</span>
+        <Link href="/" className="mb-8 flex items-center gap-2 leading-none">
+          <span className="font-heading text-[28px] font-extrabold italic">WOW</span>
+          <span className="h-5 w-1 -skew-x-12 bg-hot" aria-hidden />
+          <span className="font-heading text-[15px] font-semibold tracking-[0.12em]">LEAGUE</span>
         </Link>
         <h1 className="text-3xl">Organizer login</h1>
         {isSupabaseConfigured ? (

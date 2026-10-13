@@ -77,7 +77,7 @@ export function AuctionValue({ idx, auction, lots, teams }: { idx: LeagueIndex; 
       <div className="overflow-x-auto rounded-xl border bg-card">
         <table className="w-full min-w-max text-sm tabular">
           <thead>
-            <tr className="border-b text-xs text-muted-foreground">
+            <tr className="border-b bg-muted/50 font-heading text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
               {["Player", "Team", "Price", ...(hasGames ? ["Games", "Kills", "Revives", "MVP", "MVP / 100 cr"] : [])].map((h) => (
                 <th key={h} className="px-3 py-2.5 text-left font-medium">
                   {h}

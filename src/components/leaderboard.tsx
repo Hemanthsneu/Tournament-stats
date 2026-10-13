@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { TeamLink, TeamLogo } from "@/components/team";
 import { AWARDS, rankBy, type AwardKey, type PlayerAgg } from "@/lib/engine/players";
+import { teamColor } from "@/lib/team-colors";
 import { num } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -10,52 +11,52 @@ const value = (row: PlayerAgg, key: AwardKey) =>
 export function AwardCards({ rows, keys }: { rows: PlayerAgg[]; keys?: AwardKey[] }) {
   const awards = keys ? AWARDS.filter((a) => keys.includes(a.key)) : AWARDS;
   return (
-    <div
-      className={cn(
-        "grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2",
-        awards.length === 3 ? "lg:grid-cols-3" : awards.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3 xl:grid-cols-5",
-      )}
-    >
+    <div className={cn("grid gap-4 sm:grid-cols-2", awards.length === 3 ? "lg:grid-cols-3" : awards.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3 xl:grid-cols-5")}>
       {awards.map((award) => {
         const ranked = rankBy(rows, award.key).filter((r) => r[award.key] > 0);
         const [leader, ...rest] = ranked;
+        const color = teamColor(leader?.team);
         return (
-          <div key={award.key} className="bg-card p-5">
-            <div className="text-xs text-muted-foreground">{award.title}</div>
-            {leader ? (
-              <>
-                <div className="mt-4 flex items-end justify-between gap-3">
-                  <div className="min-w-0">
-                    <Link href={`/players/${leader.player.id}`} className="block truncate font-heading text-3xl leading-none transition-colors hover:text-muted-foreground">
-                      {leader.player.ign}
-                    </Link>
-                    <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <TeamLogo team={leader.team} size="xs" />
-                      <span className="truncate">{leader.team?.name}</span>
+          <div key={award.key} className="overflow-hidden rounded-lg border bg-card">
+            <div className="h-1.5" style={{ background: leader ? color : "var(--border)" }} />
+            <div className="p-5">
+              <div className="font-heading text-sm font-bold tracking-wide text-muted-foreground uppercase">{award.title}</div>
+              {leader ? (
+                <>
+                  <div className="mt-3 flex items-end justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link href={`/players/${leader.player.id}`} className="block truncate font-heading text-3xl leading-none font-bold uppercase transition-colors hover:text-hot">
+                        {leader.player.ign}
+                      </Link>
+                      <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <TeamLogo team={leader.team} size="xs" />
+                        <span className="truncate">{leader.team?.name}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-heading text-5xl leading-none font-bold tabular">{value(leader, award.key)}</div>
+                      <div className="mt-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{award.stat}</div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-medium tabular">{value(leader, award.key)}</div>
-                    <div className="text-[11px] text-muted-foreground">{award.stat}</div>
-                  </div>
-                </div>
-                {rest.length > 0 && (
-                  <ol className="mt-4 space-y-1.5 border-t pt-3 text-sm">
-                    {rest.slice(0, 2).map((r, i) => (
-                      <li key={r.player.id} className="flex items-center gap-2 text-muted-foreground">
-                        <span className="w-3 text-xs">{i + 2}</span>
-                        <Link href={`/players/${r.player.id}`} className="flex-1 truncate transition-colors hover:text-foreground">
-                          {r.player.ign}
-                        </Link>
-                        <span className="tabular">{value(r, award.key)}</span>
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </>
-            ) : (
-              <p className="mt-4 text-sm text-muted-foreground">{rows.length ? "Not recorded yet" : "No games yet"}</p>
-            )}
+                  {rest.length > 0 && (
+                    <ol className="mt-4 space-y-1.5 border-t pt-3 text-sm">
+                      {rest.slice(0, 2).map((r, i) => (
+                        <li key={r.player.id} className="flex items-center gap-2">
+                          <span className="w-3 font-heading font-bold text-muted-foreground">{i + 2}</span>
+                          <TeamLogo team={r.team} size="xs" />
+                          <Link href={`/players/${r.player.id}`} className="flex-1 truncate font-medium transition-colors hover:text-hot">
+                            {r.player.ign}
+                          </Link>
+                          <span className="font-heading text-base font-bold tabular">{value(r, award.key)}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </>
+              ) : (
+                <p className="mt-3 text-sm text-muted-foreground">{rows.length ? "Not recorded yet" : "No games yet"}</p>
+              )}
+            </div>
           </div>
         );
       })}
@@ -78,16 +79,16 @@ export function PlayerTable({ rows, sortKey, sortHref }: { rows: PlayerAgg[]; so
     <div className="overflow-x-auto rounded-xl border bg-card">
       <table className="w-full min-w-max text-sm tabular">
         <thead>
-          <tr className="border-b text-xs text-muted-foreground">
-            <th className="w-10 py-3 pl-4 text-left font-normal">#</th>
-            <th className="px-2 py-3 text-left font-normal">Player</th>
-            <th className="px-2 py-3 text-left font-normal">Team</th>
+          <tr className="border-b bg-muted/50 font-heading text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
+            <th className="w-10 py-3 pl-4 text-left font-semibold">#</th>
+            <th className="px-2 py-3 text-left font-semibold">Player</th>
+            <th className="px-2 py-3 text-left font-semibold">Team</th>
             {COLS.map((c) => (
-              <th key={c.key} className="px-2.5 py-3 text-right font-normal last:pr-4">
+              <th key={c.key} className="px-2.5 py-3 text-right font-semibold last:pr-4">
                 {c.key === "games" ? (
                   c.label
                 ) : (
-                  <Link href={sortHref(c.key)} scroll={false} className={cn("transition-colors hover:text-foreground", sortKey === c.key && "text-foreground")}>
+                  <Link href={sortHref(c.key)} scroll={false} className={cn("transition-colors hover:text-foreground", sortKey === c.key && "text-hot")}>
                     {c.label}
                     {sortKey === c.key && " ↓"}
                   </Link>
@@ -99,7 +100,7 @@ export function PlayerTable({ rows, sortKey, sortHref }: { rows: PlayerAgg[]; so
         <tbody>
           {ranked.map((r, i) => (
             <tr key={r.player.id} className="border-b transition-colors last:border-0 hover:bg-accent/50">
-              <td className="py-2.5 pl-4 text-muted-foreground">{i + 1}</td>
+              <td className="py-2.5 pl-4 font-heading text-base font-bold text-muted-foreground">{i + 1}</td>
               <td className="px-2 py-2.5">
                 <Link href={`/players/${r.player.id}`} className="font-medium transition-colors hover:text-muted-foreground">
                   {r.player.ign}
@@ -109,7 +110,7 @@ export function PlayerTable({ rows, sortKey, sortHref }: { rows: PlayerAgg[]; so
                 <TeamLink team={r.team} size="xs" short />
               </td>
               {COLS.map((c) => (
-                <td key={c.key} className={cn("px-2.5 py-2.5 text-right text-muted-foreground last:pr-4", sortKey === c.key && "font-medium text-foreground")}>
+                <td key={c.key} className={cn("px-2.5 py-2.5 text-right text-muted-foreground last:pr-4", sortKey === c.key && "font-heading text-base font-bold text-foreground")}>
                   {c.key === "games" ? r.games : value(r, c.key)}
                 </td>
               ))}

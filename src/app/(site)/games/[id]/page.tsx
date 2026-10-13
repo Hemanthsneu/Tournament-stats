@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Trophy } from "@/components/icons";
+import { MatchHero } from "@/components/featured-match";
 import { PageHeader } from "@/components/page-header";
 import { TeamLogo } from "@/components/team";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +10,6 @@ import type { GameView, LeagueIndex } from "@/lib/engine/league";
 import { mvpScore } from "@/lib/engine/players";
 import { num } from "@/lib/format";
 import { fmtLongDate, fmtTime, tzLabel } from "@/lib/time";
-import { cn } from "@/lib/utils";
 import { STAGE_LABELS, type PlayerGameStat, type Team } from "@/lib/types";
 
 export async function generateMetadata({ params }: PageProps<"/games/[id]">) {
@@ -23,7 +23,7 @@ export default async function GamePage({ params }: PageProps<"/games/[id]">) {
   const { idx } = await loadLeague();
   const view = idx.viewById.get(id);
   if (!view) notFound();
-  const { game, fixture, season, map, teamA, teamB, completed, winnerId } = view;
+  const { game, fixture, season, map, teamA, teamB, completed } = view;
   const siblings = idx.views.filter((v) => v.fixture.id === fixture.id && v.game.id !== game.id);
   const potm = game.potm_player_id ? idx.playerById.get(game.potm_player_id) : null;
   const context =
@@ -55,24 +55,9 @@ export default async function GamePage({ params }: PageProps<"/games/[id]">) {
         {completed ? <Badge variant="secondary">Final</Badge> : <Badge variant="outline">Scheduled</Badge>}
       </PageHeader>
 
-      <section className="border-y py-12">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 sm:gap-10">
-          <ScoreSide team={teamA} won={completed ? winnerId === teamA?.id : null} />
-          <div className="text-center">
-            {completed ? (
-              <div className="font-heading text-7xl leading-none tabular sm:text-8xl">
-                <span className={winnerId === teamA?.id ? "" : "text-muted-foreground/60"}>{game.team_a_rounds}</span>
-                <span className="mx-3 text-muted-foreground/40">–</span>
-                <span className={winnerId === teamB?.id ? "" : "text-muted-foreground/60"}>{game.team_b_rounds}</span>
-              </div>
-            ) : (
-              <div className="font-heading text-5xl text-muted-foreground italic">vs</div>
-            )}
-            <div className="mt-3 text-xs text-muted-foreground">rounds won</div>
-          </div>
-          <ScoreSide team={teamB} won={completed ? winnerId === teamB?.id : null} />
-        </div>
-        <dl className="mx-auto mt-10 flex max-w-3xl flex-wrap justify-center gap-x-10 gap-y-4 text-sm">
+      <section className="space-y-4">
+        <MatchHero view={view} />
+        <dl className="flex flex-wrap justify-center gap-x-10 gap-y-4 rounded-lg border bg-card px-6 py-4 text-sm">
           {map && (
             <div className="text-center">
               <dt className="text-xs text-muted-foreground">Map</dt>
@@ -128,7 +113,7 @@ export default async function GamePage({ params }: PageProps<"/games/[id]">) {
 
       {siblings.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-semibold">{fixture.stage === "league" ? "Other map in this pairing" : "Other games in this series"}</h2>
+          <h2 className="mb-3 font-heading text-xl font-bold tracking-wide uppercase">{fixture.stage === "league" ? "Other map in this pairing" : "Other games in this series"}</h2>
           <div className="flex flex-wrap gap-2">
             {siblings.map((s) => (
               <Link key={s.game.id} href={`/games/${s.game.id}`} className="rounded-lg border bg-card px-3 py-2 text-sm hover:border-primary/50">
@@ -143,21 +128,6 @@ export default async function GamePage({ params }: PageProps<"/games/[id]">) {
   );
 }
 
-function ScoreSide({ team, won }: { team: Team | null; won: boolean | null }) {
-  return (
-    <div className="flex flex-col items-center gap-2 text-center">
-      <TeamLogo team={team} size="xl" />
-      {team ? (
-        <Link href={`/teams/${team.id}`} className={cn("text-base font-medium transition-colors hover:text-muted-foreground sm:text-lg", won === false && "text-muted-foreground")}>
-          {team.name}
-        </Link>
-      ) : (
-        <span className="italic text-muted-foreground">TBD</span>
-      )}
-      {won && <span className="rounded-full bg-win-soft px-2 py-0.5 text-xs font-medium text-win">Winner</span>}
-    </div>
-  );
-}
 
 function Lineup({ idx, view, team, stats }: { idx: LeagueIndex; view: GameView; team: Team | null; stats: PlayerGameStat[] }) {
   const rows = [...stats].sort((a, b) => b.kills - a.kills || b.revives - a.revives);
@@ -170,11 +140,11 @@ function Lineup({ idx, view, team, stats }: { idx: LeagueIndex; view: GameView; 
       </div>
       <table className="w-full text-sm tabular">
         <thead>
-          <tr className="border-b text-xs text-muted-foreground">
-            <th className="px-4 py-2 text-left font-normal">Player</th>
-            <th className="px-2 py-2 text-center font-normal">Kills</th>
-            <th className="px-2 py-2 text-center font-normal">Revives</th>
-            <th className="px-4 py-2 text-center font-normal">MVP</th>
+          <tr className="border-b bg-muted/50 font-heading text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
+            <th className="px-4 py-2 text-left font-semibold">Player</th>
+            <th className="px-2 py-2 text-center font-semibold">Kills</th>
+            <th className="px-2 py-2 text-center font-semibold">Revives</th>
+            <th className="px-4 py-2 text-center font-semibold">MVP</th>
           </tr>
         </thead>
         <tbody>

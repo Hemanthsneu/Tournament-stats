@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowRight, AtSign, BadgeCheck, CirclePlay, Gavel, Swords, Trophy } from "@/components/icons";
 import { FilterPills } from "@/components/filter-pills";
 import { EmptyState, SectionTitle } from "@/components/page-header";
-import { TeamLink, TeamLogo } from "@/components/team";
+import { TeamLink } from "@/components/team";
 import { Button } from "@/components/ui/button";
 import { credits } from "@/lib/auction";
 import { loadCommunity, profileMap, verifiedSet } from "@/lib/community";
@@ -11,6 +11,7 @@ import { loadLeague } from "@/lib/data";
 import { playerCareer } from "@/lib/engine/players";
 import { num } from "@/lib/format";
 import { fmtDate } from "@/lib/time";
+import { onColor, teamColor } from "@/lib/team-colors";
 import { cn } from "@/lib/utils";
 import type { FixtureType } from "@/lib/types";
 
@@ -31,6 +32,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
   const profile = profileMap(community).get(id);
   const verified = verifiedSet(community).has(id);
   const photo = profile?.photo_url ?? player.photo_url;
+  const band = teamColor(currentTeam ?? log[0]?.team ?? null);
   const auctionHistory = community.auctionLots
     .filter((l) => l.player_id === id && (l.status === "sold" || l.status === "unsold"))
     .map((l) => ({ lot: l, auction: community.auctions.find((a) => a.id === l.auction_id && !a.is_practice) }))
@@ -38,76 +40,94 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
 
   return (
     <div className="space-y-16">
-      <section className="flex flex-wrap items-end gap-x-10 gap-y-8">
-        {photo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photo} alt={`${player.ign}`} className="size-24 rounded-2xl object-cover" />
-        ) : (
-          <TeamLogo team={currentTeam} size="xl" />
-        )}
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            {verified && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-win-soft px-2 py-0.5 font-medium text-win" title="This player has claimed their profile">
-                <BadgeCheck className="size-3.5" /> Verified
-              </span>
-            )}
-            {profile?.role && <span className="rounded-full bg-muted px-2 py-0.5 text-muted-foreground">{profile.role}</span>}
+      <section className="full-bleed -mt-8 sm:-mt-10" style={{ background: band, color: onColor(band) }}>
+        <div className="mx-auto flex max-w-7xl flex-wrap items-end gap-6 px-4 pt-10 pb-8 sm:gap-8 sm:px-6 sm:pt-14">
+          {photo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photo} alt={player.ign} className="size-28 rounded-xl object-cover ring-4 ring-white/20 sm:size-36" />
+          ) : (
+            <div className="grid size-28 place-items-center rounded-xl bg-black/15 font-heading text-5xl font-extrabold italic sm:size-36 sm:text-6xl">
+              {player.ign.slice(0, 2).toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 font-heading text-sm font-semibold tracking-wide uppercase opacity-90">
+              {currentTeam ? (
+                <Link href={`/teams/${currentTeam.id}`} className="hover:underline">
+                  {currentTeam.name}
+                </Link>
+              ) : (
+                <span>Free agent</span>
+              )}
+              {profile?.role && <span>· {profile.role}</span>}
+              {verified && (
+                <span className="inline-flex items-center gap-1 rounded-sm bg-white/90 px-1.5 py-0.5 text-[11px] font-bold tracking-widest text-brand" title="This player has claimed their profile">
+                  <BadgeCheck className="size-3.5" /> VERIFIED
+                </span>
+              )}
+            </div>
+            <h1 className="mt-2 text-6xl leading-[0.9] sm:text-8xl">{player.ign}</h1>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm opacity-85">
+              {player.real_name && <span>{player.real_name}</span>}
+              {player.bgmi_uid && <span className="font-mono text-xs">UID {player.bgmi_uid}</span>}
+              {aliases.length > 0 && <span>formerly {aliases.map((a) => a.ign).join(", ")}</span>}
+              {totals.titles > 0 && <span className="font-semibold">{totals.titles}× champion</span>}
+              {profile?.instagram && (
+                <a href={`https://instagram.com/${profile.instagram}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">
+                  <AtSign className="size-3.5" /> {profile.instagram}
+                </a>
+              )}
+              {profile?.youtube && (
+                <a href={profile.youtube} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">
+                  <CirclePlay className="size-3.5" /> YouTube
+                </a>
+              )}
+            </div>
+            {profile?.bio && <p className="mt-3 max-w-xl text-base italic opacity-90">“{profile.bio}”</p>}
           </div>
-          <h1 className="mt-2 text-5xl leading-none sm:text-6xl">{player.ign}</h1>
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-            {currentTeam ? <TeamLink team={currentTeam} size="xs" /> : <span>Free agent</span>}
-            {player.real_name && <span>{player.real_name}</span>}
-            {player.bgmi_uid && <span className="font-mono text-xs">UID {player.bgmi_uid}</span>}
-            {aliases.length > 0 && <span>formerly {aliases.map((a) => a.ign).join(", ")}</span>}
-            {totals.titles > 0 && <span className="text-gold">{totals.titles}× champion</span>}
-            {profile?.instagram && (
-              <a href={`https://instagram.com/${profile.instagram}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-foreground">
-                <AtSign className="size-3.5" /> {profile.instagram}
-              </a>
-            )}
-            {profile?.youtube && (
-              <a href={profile.youtube} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-foreground">
-                <CirclePlay className="size-3.5" /> YouTube
-              </a>
-            )}
-          </div>
-          {profile?.bio && <p className="mt-3 max-w-xl font-heading text-xl italic text-foreground/80">“{profile.bio}”</p>}
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button asChild size="sm" variant="outline">
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm" className="bg-white font-semibold text-brand hover:bg-white/90">
               <Link href={`/compare?a=${player.id}`}>
                 <Swords /> Compare
               </Link>
             </Button>
-            {auctionHistory.map(({ lot, auction }) => (
-              <span key={lot.id} className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
-                <Gavel className="size-3.5" /> {auction!.name}:{" "}
-                {lot.status === "sold" ? (
-                  <span className="font-medium text-foreground">
-                    {idx.teamById.get(lot.sold_team_id ?? "")?.name ?? "?"} · {credits(lot.sold_price ?? 0)}
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">unsold</span>
-                )}
-              </span>
-            ))}
           </div>
         </div>
-        <dl className="grid grid-cols-5 gap-6 sm:gap-8">
-          {[
-            ["Games", totals.games],
-            ["Kills", totals.kills],
-            ["Revives", totals.revives],
-            ["MVP", num(totals.mvp, 0)],
-            ["POTM", totals.potm],
-          ].map(([label, value]) => (
-            <div key={label}>
-              <dd className="text-2xl font-medium tabular">{value}</dd>
-              <dt className="mt-0.5 text-xs text-muted-foreground">{label}</dt>
-            </div>
-          ))}
-        </dl>
+        <div className="bg-black/20">
+          <dl className="mx-auto flex max-w-7xl flex-wrap gap-x-10 gap-y-4 px-4 py-5 sm:px-6">
+            {[
+              ["Games", totals.games],
+              ["Kills", totals.kills],
+              ["Revives", totals.revives],
+              ["MVP pts", num(totals.mvp, 0)],
+              ["POTM", totals.potm],
+              ["Kills / game", totals.games ? (totals.kills / totals.games).toFixed(1) : "–"],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <dd className="font-heading text-4xl leading-none font-bold tabular">{value}</dd>
+                <dt className="mt-1 text-xs font-medium tracking-wide uppercase opacity-75">{label}</dt>
+              </div>
+            ))}
+          </dl>
+        </div>
       </section>
+
+      {auctionHistory.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {auctionHistory.map(({ lot, auction }) => (
+            <span key={lot.id} className="inline-flex items-center gap-1.5 rounded-md border bg-card px-2.5 py-1 text-xs text-muted-foreground">
+              <Gavel className="size-3.5" /> {auction!.name}:{" "}
+              {lot.status === "sold" ? (
+                <span className="font-semibold text-foreground">
+                  {idx.teamById.get(lot.sold_team_id ?? "")?.name ?? "?"} · {credits(lot.sold_price ?? 0)}
+                </span>
+              ) : (
+                <span>unsold</span>
+              )}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         {history.length > 0 ? (
@@ -144,7 +164,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
           <div className="overflow-x-auto rounded-xl border bg-card">
             <table className="w-full min-w-max text-sm tabular">
               <thead>
-                <tr className="border-b text-xs text-muted-foreground">
+                <tr className="border-b bg-muted/50 font-heading text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
                   {["Season", "Team", "Games", "Kills", "Revives", "Avg kills", "MVP", "POTM", "Team finish"].map((h) => (
                     <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
                   ))}
@@ -182,7 +202,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
           <div className="overflow-x-auto rounded-xl border bg-card">
             <table className="w-full min-w-max text-sm tabular">
               <thead>
-                <tr className="border-b text-xs text-muted-foreground">
+                <tr className="border-b bg-muted/50 font-heading text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
                   {["Date", "Game", "Team", "Opponent", "Map", "Result", "Kills", "Revives"].map((h) => (
                     <th key={h} className="px-3 py-3 text-left font-medium">{h}</th>
                   ))}

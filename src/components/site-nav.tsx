@@ -8,11 +8,11 @@ import { cn } from "@/lib/utils";
 
 const SEASON_LINKS = [
   { href: "", label: "Home" },
-  { href: "/table", label: "Table" },
+  { href: "/table", label: "Standings" },
   { href: "/schedule", label: "Schedule" },
   { href: "/playoffs", label: "Playoffs" },
-  { href: "/practice", label: "Practice" },
   { href: "/stats", label: "Stats" },
+  { href: "/practice", label: "Practice" },
 ];
 
 const GLOBAL_LINKS = [
@@ -21,11 +21,12 @@ const GLOBAL_LINKS = [
   { href: "/hall-of-fame", label: "Hall of Fame" },
 ];
 
-export function Wordmark() {
+export function Wordmark({ className }: { className?: string }) {
   return (
-    <Link href="/" className="flex items-baseline gap-1.5 leading-none">
-      <span className="font-heading text-[26px] italic">WOW</span>
-      <span className="text-sm font-medium text-muted-foreground">League</span>
+    <Link href="/" className={cn("flex items-center gap-2 leading-none", className)} aria-label="WOW League home">
+      <span className="font-heading text-[28px] font-extrabold italic tracking-tight">WOW</span>
+      <span className="h-5 w-1 -skew-x-12 bg-hot" aria-hidden />
+      <span className="font-heading text-[15px] font-semibold tracking-[0.12em]">LEAGUE</span>
     </Link>
   );
 }
@@ -59,14 +60,40 @@ export function SiteNav({
   const isActive = (href: string) =>
     href.split("/").length === 3 ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 
+  const navLinks = (className: string) =>
+    links.map((l) => {
+      const active = isActive(l.href);
+      return (
+        <Link
+          key={l.href}
+          href={l.href}
+          aria-current={active ? "page" : undefined}
+          className={cn(
+            "relative flex shrink-0 items-center gap-1.5 font-heading text-[15px] font-semibold tracking-wide text-white/65 uppercase transition-colors hover:text-white",
+            active && "text-white after:absolute after:inset-x-0 after:bottom-0 after:h-[3px] after:bg-hot",
+            className,
+          )}
+        >
+          {l.live && <span className="size-1.5 animate-pulse rounded-full bg-hot" aria-label="live" />}
+          {l.label}
+        </Link>
+      );
+    });
+
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 sm:px-6">
+    <header className="sticky top-0 z-40 bg-brand text-brand-foreground shadow-[0_1px_0_rgb(255_255_255/0.06)]">
+      <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:gap-8 sm:px-6">
         <Wordmark />
-        <div className="ml-auto flex items-center gap-1.5">
+        <nav className="hidden h-full items-stretch gap-6 xl:flex" aria-label="Main">
+          {navLinks("h-full")}
+        </nav>
+        <div className="ml-auto flex items-center gap-2">
           {seasons.length > 0 && selected && (
             <Select value={selected} onValueChange={onSeasonChange}>
-              <SelectTrigger size="sm" className="max-w-44 border-transparent bg-transparent text-muted-foreground shadow-none hover:bg-accent hover:text-foreground dark:bg-transparent">
+              <SelectTrigger
+                size="sm"
+                className="w-28 border-white/15 bg-white/5 text-white hover:bg-white/10 data-[placeholder]:text-white/70 sm:w-auto sm:max-w-44 dark:bg-white/5 [&_svg]:text-white/70"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent align="end">
@@ -82,24 +109,8 @@ export function SiteNav({
           <AccountButton />
         </div>
       </div>
-      <nav className="mx-auto flex max-w-6xl gap-5 overflow-x-auto px-4 text-sm [scrollbar-width:none] sm:px-6" aria-label="Main">
-        {links.map((l) => {
-          const active = isActive(l.href);
-          return (
-            <Link
-              key={l.href}
-              href={l.href}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "relative flex shrink-0 items-center gap-1.5 pt-1 pb-3 text-muted-foreground transition-colors hover:text-foreground",
-                active && "text-foreground after:absolute after:inset-x-0 after:-bottom-px after:h-px after:bg-foreground",
-              )}
-            >
-              {l.live && <span className="size-1.5 animate-pulse rounded-full bg-loss" aria-label="live" />}
-              {l.label}
-            </Link>
-          );
-        })}
+      <nav className="mx-auto flex h-11 max-w-7xl items-stretch gap-5 overflow-x-auto border-t border-white/10 px-4 [scrollbar-width:none] sm:px-6 xl:hidden" aria-label="Main">
+        {navLinks("")}
       </nav>
     </header>
   );

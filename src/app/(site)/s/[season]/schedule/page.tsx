@@ -60,7 +60,7 @@ export default async function SchedulePage({ params }: PageProps<"/s/[season]/sc
                     if (!games.length) return null;
                     return (
                       <section key={stage}>
-                        <h2 className="mb-3 text-lg font-semibold">
+                        <h2 className="mb-3 font-heading text-xl font-bold tracking-wide uppercase">
                           {STAGE_LABELS[stage]} <span className="text-sm font-normal text-muted-foreground">· best of 3</span>
                         </h2>
                         <div className="grid gap-3 md:grid-cols-2">
@@ -77,7 +77,7 @@ export default async function SchedulePage({ params }: PageProps<"/s/[season]/sc
                     return (
                       <section key={day}>
                         <div className="mb-3 flex flex-wrap items-baseline gap-x-3">
-                          <h2 className="text-lg font-semibold">Matchday {day}</h2>
+                          <h2 className="font-heading text-xl font-bold tracking-wide uppercase">Matchday {day}</h2>
                           {date && <span className="text-sm text-muted-foreground">{fmtLongDate(date)}</span>}
                           {resting.length > 0 && (
                             <span className="text-xs text-muted-foreground">

@@ -14,16 +14,17 @@ const SIZES = {
 /** Solid team-colour badge with the tag, like a sports logo tile. */
 export function TeamLogo({ team, size = "sm", className }: { team: Team | null; size?: keyof typeof SIZES; className?: string }) {
   const base = cn("grid shrink-0 place-items-center overflow-hidden font-heading leading-none font-bold uppercase", SIZES[size], className);
-  if (!team) return <div className={cn(base, "border border-dashed bg-card text-muted-foreground")}>?</div>;
+  // Spans, not divs: logos sit inside links and sentences.
+  if (!team) return <span className={cn(base, "border border-dashed bg-card text-muted-foreground")}>?</span>;
   if (team.logo_url) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={team.logo_url} alt={`${team.name} logo`} className={cn(base, "bg-card object-cover ring-1 ring-border")} />;
   }
   const color = teamColor(team);
   return (
-    <div className={base} style={{ background: color, color: onColor(color) }} aria-hidden>
+    <span className={base} style={{ background: color, color: onColor(color) }} aria-hidden>
       {team.tag.slice(0, 4)}
-    </div>
+    </span>
   );
 }
 

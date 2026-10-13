@@ -2,7 +2,7 @@ import { Gavel } from "@/components/icons";
 import { AuctionRoom, type RoomPlayer } from "@/components/auction/auction-room";
 import { AuctionValue } from "@/components/auction/auction-value";
 import { EmptyState } from "@/components/page-header";
-import { featuredAuction, getViewer, loadCommunity, profileMap, verifiedSet } from "@/lib/community";
+import { availabilityMap, featuredAuction, getViewer, loadCommunity, profileMap, verifiedSet } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
 import { filterGames, sortedSeasons } from "@/lib/engine/league";
 import { playerLeaderboard } from "@/lib/engine/players";
@@ -29,6 +29,7 @@ export default async function AuctionPage({ searchParams }: PageProps<"/auction"
   const snapshot = data as AuctionSnapshot;
   const profiles = profileMap(community);
   const verified = verifiedSet(community);
+  const availability = availabilityMap(community);
   const career = new Map(playerLeaderboard(idx, filterGames(idx, { type: "official" })).map((r) => [r.player.id, r]));
   const latestSeason = sortedSeasons(idx.data).find((s) => s.id !== auction.season_id);
 
@@ -49,6 +50,7 @@ export default async function AuctionPage({ searchParams }: PageProps<"/auction"
       verified: verified.has(id),
       lastTeam: lastRoster ? idx.teamById.get(lastRoster.team_id)?.name ?? null : null,
       stats: c ? { games: c.games, kills: c.kills, revives: c.revives, mvp: c.mvp, potm: c.potm, avgKills: c.avgKills } : null,
+      availability: availability.get(id) ?? null,
     };
   }
   const teams: Record<string, Team> = {};

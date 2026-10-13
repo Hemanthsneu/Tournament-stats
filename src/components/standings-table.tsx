@@ -1,23 +1,38 @@
+import {
+  BulletIcon,
+  ChickenIcon,
+  CrateIcon,
+  CrosshairIcon,
+  EnergyIcon,
+  HelmetCrackedIcon,
+  HelmetIcon,
+  HitMarkerIcon,
+  MedkitIcon,
+  ParachuteIcon,
+  ScopeIcon,
+  SkullIcon,
+  TargetIcon,
+} from "@/components/pubg-icons";
 import { TeamLink } from "@/components/team";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { StandingRow } from "@/lib/engine/league";
 import { pct, signed } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const COLUMNS: { key: string; label: string; hint: string; compact?: boolean }[] = [
-  { key: "p", label: "P", hint: "Map games played", compact: true },
-  { key: "w", label: "W", hint: "Won", compact: true },
-  { key: "l", label: "L", hint: "Lost", compact: true },
-  { key: "nrr", label: "NRR", hint: "Net Round Rate = (rounds won − rounds lost) ÷ rounds played", compact: true },
-  { key: "rw", label: "RW", hint: "Rounds won" },
-  { key: "rl", label: "RL", hint: "Rounds lost" },
-  { key: "rwp", label: "Win %", hint: "Round win % = rounds won ÷ rounds played" },
-  { key: "k", label: "K", hint: "Total kills" },
-  { key: "kc", label: "KC", hint: "Kills conceded (opponent kills)" },
-  { key: "nkr", label: "NKR", hint: "Net Kill Rate = (kills − kills conceded) ÷ rounds played" },
-  { key: "rev", label: "Rev", hint: "Total revives" },
-  { key: "form", label: "Form", hint: "Last 5 results, most recent on the right" },
-  { key: "pts", label: "Pts", hint: "Points", compact: true },
+const COLUMNS: { key: string; label: string; hint: string; icon: React.ComponentType<{ className?: string }>; compact?: boolean }[] = [
+  { key: "p", label: "P", hint: "Map games played", icon: ParachuteIcon, compact: true },
+  { key: "w", label: "W", hint: "Won (chicken dinners)", icon: ChickenIcon, compact: true },
+  { key: "l", label: "L", hint: "Lost", icon: SkullIcon, compact: true },
+  { key: "nrr", label: "NRR", hint: "Net Round Rate = (rounds won − rounds lost) ÷ rounds played", icon: BulletIcon, compact: true },
+  { key: "rw", label: "RW", hint: "Rounds won", icon: HelmetIcon },
+  { key: "rl", label: "RL", hint: "Rounds lost", icon: HelmetCrackedIcon },
+  { key: "rwp", label: "Win %", hint: "Round win % = rounds won ÷ rounds played", icon: TargetIcon },
+  { key: "k", label: "K", hint: "Total kills", icon: CrosshairIcon },
+  { key: "kc", label: "KC", hint: "Kills conceded (opponent kills)", icon: HitMarkerIcon },
+  { key: "nkr", label: "NKR", hint: "Net Kill Rate = (kills − kills conceded) ÷ rounds played", icon: ScopeIcon },
+  { key: "rev", label: "Rev", hint: "Total revives", icon: MedkitIcon },
+  { key: "form", label: "Form", hint: "Last 5 results, most recent on the right", icon: EnergyIcon },
+  { key: "pts", label: "Pts", hint: "Points", icon: CrateIcon, compact: true },
 ];
 
 const tone = (n: number) => (n > 0 ? "text-win" : n < 0 ? "text-loss" : "text-muted-foreground");
@@ -73,11 +88,14 @@ export function StandingsTable({
   rows,
   compact = false,
   playoffLines = false,
+  movement,
 }: {
   rows: StandingRow[];
   compact?: boolean;
   /** Mark top 2 / top 4 and show Q/E (official league table). */
   playoffLines?: boolean;
+  /** Places gained (+) / lost (−) since the previous matchday. */
+  movement?: Map<string, number>;
 }) {
   const cols = compact ? COLUMNS.filter((c) => c.compact) : COLUMNS;
   return (
@@ -85,12 +103,15 @@ export function StandingsTable({
       <table className="w-full min-w-max text-sm tabular">
         <thead>
           <tr className="border-b bg-muted/50 font-heading text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
-            <th className="sticky left-0 z-10 w-12 bg-muted py-3 pl-4 text-left font-semibold">#</th>
-            <th className="sticky left-12 z-10 bg-muted px-2 py-3 text-left font-semibold">Team</th>
+            <th className={cn("sticky left-0 z-10 bg-muted py-3 pl-4 text-left font-semibold", movement ? "w-[4.5rem]" : "w-12")}>#</th>
+            <th className={cn("sticky z-10 bg-muted px-2 py-3 text-left font-semibold", movement ? "left-[4.5rem]" : "left-12")}>Team</th>
             {cols.map((c) => (
               <th key={c.key} className={cn("px-2.5 py-3 text-right font-semibold", c.key === "form" && "text-left", c.key === "pts" && "pr-4 text-foreground")}>
                 <Tooltip>
-                  <TooltipTrigger className="cursor-help">{c.label}</TooltipTrigger>
+                  <TooltipTrigger className={cn("inline-flex cursor-help flex-col items-center gap-0.5", c.key === "form" ? "items-start" : "items-end")}>
+                    <c.icon className={cn("size-4", c.key === "pts" ? "text-hot" : "text-foreground/70")} />
+                    <span>{c.label}</span>
+                  </TooltipTrigger>
                   <TooltipContent>{c.hint}</TooltipContent>
                 </Tooltip>
               </th>
@@ -112,14 +133,20 @@ export function StandingsTable({
                 <td className="sticky left-0 z-10 bg-card py-3 pl-4">
                   <span
                     className={cn(
-                      "grid size-6 place-items-center rounded-[5px] font-heading text-sm font-bold",
+                      "inline-grid size-6 place-items-center rounded-[5px] align-middle font-heading text-sm font-bold",
                       top2 ? "bg-brand text-white" : top4 ? "bg-info-soft text-info" : "text-muted-foreground",
                     )}
                   >
                     {row.position}
                   </span>
+                  {movement && (
+                    <span className="ml-1.5 align-middle text-[11px] font-semibold">
+                      <Move delta={movement.get(row.team.id) ?? 0} />
+                    </span>
+                  )}
                 </td>
-                <td className="sticky left-12 z-10 max-w-52 bg-card px-2 py-3">
+
+                <td className={cn("sticky z-10 max-w-52 bg-card px-2 py-3", movement ? "left-[4.5rem]" : "left-12")}>
                   <div className="flex items-center gap-2">
                     <TeamLink team={row.team} short={compact} />
                     {row.mark && <MarkBadge mark={row.mark} />}
@@ -137,6 +164,12 @@ export function StandingsTable({
       </table>
     </div>
   );
+}
+
+function Move({ delta }: { delta: number }) {
+  if (delta > 0) return <span className="text-win">▲{delta}</span>;
+  if (delta < 0) return <span className="text-loss">▼{-delta}</span>;
+  return <span className="text-muted-foreground/50">–</span>;
 }
 
 function MarkBadge({ mark }: { mark: "Q" | "E" }) {

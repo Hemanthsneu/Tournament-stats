@@ -4,7 +4,7 @@ import { isSupabaseConfigured } from "./supabase/config";
 import { createPublicClient, createSessionClient } from "./supabase/server";
 import type { Auction, CommunityData, PlayerProfile } from "./types";
 
-const EMPTY: CommunityData = { accounts: [], profiles: [], auctions: [], auctionTeams: [], auctionLots: [] };
+const EMPTY: CommunityData = { availability: [], accounts: [], profiles: [], auctions: [], auctionTeams: [], auctionLots: [] };
 
 /** Reads a table; returns [] if it doesn't exist yet (e.g. before the Season 2 migration runs). */
 async function readTable<T>(table: string, order: string): Promise<T[]> {
@@ -24,14 +24,15 @@ async function readTable<T>(table: string, order: string): Promise<T[]> {
 /** Accounts, player profiles and auctions, once per request. */
 export const loadCommunity = cache(async (): Promise<CommunityData> => {
   if (!isSupabaseConfigured) return EMPTY;
-  const [accounts, profiles, auctions, auctionTeams, auctionLots] = await Promise.all([
+  const [availability, accounts, profiles, auctions, auctionTeams, auctionLots] = await Promise.all([
+    readTable<CommunityData["availability"][number]>("player_availability", "player_id"),
     readTable<CommunityData["accounts"][number]>("player_accounts", "claimed_at"),
     readTable<PlayerProfile>("player_profiles", "player_id"),
     readTable<Auction>("auctions", "created_at"),
     readTable<CommunityData["auctionTeams"][number]>("auction_teams", "sort_order"),
     readTable<CommunityData["auctionLots"][number]>("auction_lots", "created_at"),
   ]);
-  return { accounts, profiles, auctions, auctionTeams, auctionLots };
+  return { availability, accounts, profiles, auctions, auctionTeams, auctionLots };
 });
 
 export interface Viewer {
@@ -67,6 +68,10 @@ export const realAuctions = (data: CommunityData) => data.auctions.filter((a) =>
 
 export function profileMap(data: CommunityData): Map<string, PlayerProfile> {
   return new Map(data.profiles.map((p) => [p.player_id, p]));
+}
+
+export function availabilityMap(data: CommunityData) {
+  return new Map(data.availability.map((a) => [a.player_id, a]));
 }
 
 export function verifiedSet(data: CommunityData): Set<string> {

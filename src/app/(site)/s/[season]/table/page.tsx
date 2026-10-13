@@ -2,7 +2,7 @@ import { EmptyState, PageHeader, SectionTitle } from "@/components/page-header";
 import { StandingsLegend, StandingsTable } from "@/components/standings-table";
 import { TeamLink } from "@/components/team";
 import { loadSeason } from "@/lib/data";
-import { isLeagueComplete, leagueStandings } from "@/lib/engine/league";
+import { isLeagueComplete, leagueStandings, standingsMovement } from "@/lib/engine/league";
 import { TIEBREAK_LABELS } from "@/lib/types";
 
 export async function generateMetadata({ params }: PageProps<"/s/[season]/table">) {
@@ -24,7 +24,7 @@ export default async function TablePage({ params }: PageProps<"/s/[season]/table
       />
       {rows.length ? (
         <>
-          <StandingsTable rows={rows} playoffLines={rows.length >= 4} />
+          <StandingsTable rows={rows} playoffLines={rows.length >= 4} movement={standingsMovement(idx, season)} />
           <StandingsLegend playoffLines={rows.length >= 4} />
         </>
       ) : (

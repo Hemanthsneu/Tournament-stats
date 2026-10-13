@@ -1,14 +1,32 @@
 import Link from "next/link";
-import { ArrowRight, Crown } from "@/components/icons";
-import { FeaturedMatch } from "@/components/featured-match";
+import { ArrowRight } from "@/components/icons";
 import { GameCard } from "@/components/game-card";
+import { HeroCarousel, type HeroSlide, type TeamLite } from "@/components/home/hero-carousel";
+import { PromoBanners, type Promo } from "@/components/home/promo-banners";
+import { Reveal } from "@/components/home/reveal";
+import { TeamMarquee } from "@/components/home/team-marquee";
 import { AwardCards } from "@/components/leaderboard";
 import { EmptyState, SectionTitle } from "@/components/page-header";
 import { StandingsTable } from "@/components/standings-table";
-import { Button } from "@/components/ui/button";
+import { featuredAuction, getViewer, loadCommunity, profileMap, realAuctions } from "@/lib/community";
 import { loadSeason } from "@/lib/data";
-import { filterGames, isLeagueComplete, leagueStandings, playoffSeries, seasonMaps, seasonTeams, upNext } from "@/lib/engine/league";
-import { playerLeaderboard } from "@/lib/engine/players";
+import {
+  currentSeason,
+  filterGames,
+  isLeagueComplete,
+  leagueStandings,
+  playoffSeries,
+  seasonMaps,
+  seasonTeams,
+  standingsMovement,
+  upNext,
+  type GameView,
+} from "@/lib/engine/league";
+import { playerLeaderboard, rankBy } from "@/lib/engine/players";
+import { signed } from "@/lib/format";
+import { teamColor } from "@/lib/team-colors";
+import { fmtDateTime } from "@/lib/time";
+import type { Team } from "@/lib/types";
 
 function MoreLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
@@ -18,9 +36,29 @@ function MoreLink({ href, children }: { href: string; children: React.ReactNode 
   );
 }
 
+const lite = (t: Team | null): TeamLite | null => (t ? { id: t.id, name: t.name, tag: t.tag, color: teamColor(t) } : null);
+
+function matchSlide(v: GameView, eyebrow: string): HeroSlide {
+  return {
+    kind: "match",
+    id: `match-${v.game.id}`,
+    eyebrow,
+    href: `/games/${v.game.id}`,
+    label: v.label,
+    a: lite(v.teamA),
+    b: lite(v.teamB),
+    ra: v.completed ? v.game.team_a_rounds : null,
+    rb: v.completed ? v.game.team_b_rounds : null,
+    winnerId: v.winnerId,
+    scheduledAt: v.completed ? null : v.game.scheduled_at,
+    when: v.game.scheduled_at ? fmtDateTime(v.game.scheduled_at) : null,
+    map: v.map?.name ?? null,
+  };
+}
+
 export default async function SeasonHome({ params }: PageProps<"/s/[season]">) {
   const { season: param } = await params;
-  const { idx, season } = await loadSeason(param);
+  const [{ idx, season }, community, viewer] = await Promise.all([loadSeason(param), loadCommunity(), getViewer()]);
   const official = filterGames(idx, { seasonId: season.id, type: "official" });
   const played = official.filter((g) => g.completed);
   const next = upNext(official, 3);
@@ -32,69 +70,147 @@ export default async function SeasonHome({ params }: PageProps<"/s/[season]">) {
   const teams = seasonTeams(idx, season.id);
   const maps = seasonMaps(idx, season.id);
   const base = `/s/${season.number}`;
-  const featured = next[0] ?? latest[0] ?? null;
+  const isCurrent = currentSeason(idx.data)?.id === season.id;
+  const totalKills = played.reduce((n, g) => n + g.killsA + g.killsB, 0);
+
+  const auctions = realAuctions(community);
+  const auction = featuredAuction({ ...community, auctions });
+  const showAuction = auction && (auction.season_id === season.id || (isCurrent && auction.status !== "completed"));
+  const auctionLive = auction?.status === "live" || auction?.status === "paused";
+
+  // Hero carousel
+  const slides: HeroSlide[] = [
+    {
+      kind: "season",
+      id: "season",
+      eyebrow: stage,
+      live: stage === "League stage",
+      title: season.name,
+      meta: `${teams.length} teams · ${season.round_robins} round robin${season.round_robins > 1 ? "s" : ""} · ${maps.map((m) => m.name).join(", ") || "maps TBA"} · top 4 to IPL-style playoffs`,
+      stats: [
+        { label: "Games played", value: played.length },
+        { label: "Still to play", value: official.length - played.length },
+        { label: "Total kills", value: totalKills },
+      ],
+      ctas: [
+        { label: "Standings", href: `${base}/table`, primary: true },
+        { label: "Schedule", href: `${base}/schedule` },
+      ],
+    },
+  ];
+  if (champion) {
+    slides.push({
+      kind: "banner",
+      id: "champion",
+      tone: "gold",
+      eyebrow: `${season.name} champions`,
+      title: champion.name,
+      text: "Through the league stage and the playoffs. Winner winner, chicken dinner.",
+      href: `/teams/${champion.id}`,
+      cta: "Champions' page",
+      team: lite(champion)!,
+    });
+  }
+  if (showAuction && auctionLive) {
+    slides.push({ kind: "banner", id: "auction", live: true, eyebrow: "Auction live", title: auction.name, text: "Captains are bidding right now. Watch every bid, every sold call and every purse in real time.", href: "/auction", cta: "Enter the auction room" });
+  }
+  if (next[0]) slides.push(matchSlide(next[0], next[0].game.scheduled_at ? "Up next" : "Next match"));
+  if (latest[0]) slides.push(matchSlide(latest[0], "Latest result"));
+  const fragger = rankBy(board, "kills").find((r) => r.kills > 0);
+  if (fragger) {
+    slides.push({
+      kind: "player",
+      id: "fragger",
+      eyebrow: "Top fragger",
+      ign: fragger.player.ign,
+      team: lite(fragger.team),
+      photo: profileMap(community).get(fragger.player.id)?.photo_url ?? null,
+      href: `/players/${fragger.player.id}`,
+      stats: [
+        { label: "Kills", value: fragger.kills },
+        { label: "Games", value: fragger.games },
+        { label: "Kills / game", value: Number(fragger.avgKills.toFixed(1)) },
+      ],
+    });
+  }
+  const leader = played.length ? table[0] : null;
+  if (leader && !champion) {
+    slides.push({
+      kind: "banner",
+      id: "leader",
+      eyebrow: "Top of the table",
+      title: leader.team.name,
+      text: `${leader.points} points from ${leader.played} games · ${leader.won} won, ${leader.lost} lost · NRR ${signed(leader.nrr)} · ${leader.kills} kills`,
+      href: `/teams/${leader.team.id}`,
+      cta: "Team page",
+      team: lite(leader.team)!,
+    });
+  }
+  if (showAuction && !auctionLive && auction.status === "setup") {
+    slides.push({
+      kind: "banner",
+      id: "auction",
+      eyebrow: auction.registration_open ? "Registration open" : "Coming soon",
+      title: auction.name,
+      text: auction.registration_open ? "Sign in, register for the pool and share when you can play so captains know before they bid." : "Captains will bid live for every player. Set your availability now.",
+      href: auction.registration_open ? "/me" : "/auction",
+      cta: auction.registration_open ? "Register now" : "Auction room",
+    });
+  }
+
+  // Promo banners
+  const promos: Promo[] = [];
+  if (showAuction) {
+    promos.push(
+      auctionLive
+        ? { id: "auction", tone: "navy", icon: "crate", live: true, eyebrow: "Live now", title: "The auction is on", text: "Every bid, sold call and purse updates live. Captains bid from their own logins.", href: "/auction", cta: "Enter the room" }
+        : auction.status === "completed"
+          ? { id: "auction", tone: "navy", icon: "crate", eyebrow: "Auction results", title: "Squads are set", text: "See who went where, for how much, and the steals of the night.", href: "/auction", cta: "See results" }
+          : {
+              id: "auction",
+              tone: "navy",
+              icon: "crate",
+              eyebrow: auction.registration_open ? "Registration open" : "Coming soon",
+              title: auction.name,
+              text: `Captains bid live with a ${auction.purse.toLocaleString("en-IN")} purse. Register and share your availability before the hammer falls.`,
+              href: "/auction",
+              cta: "Auction room",
+            },
+    );
+  }
+  promos.push(
+    viewer?.playerId
+      ? { id: "availability", tone: "hot", icon: "parachute", eyebrow: "For players", title: "When can you play?", text: "Set your days and hours. Captains see them on the auction screen before they bid.", href: "/me", cta: "Set availability" }
+      : { id: "availability", tone: "hot", icon: "parachute", eyebrow: "For players", title: "Claim your profile", text: "Use your claim code to link your stats, add a photo and tell captains when you can play.", href: viewer ? "/me" : "/login", cta: viewer ? "Claim profile" : "Sign in" },
+    { id: "hof", tone: "gold", icon: "pan", eyebrow: "All seasons", title: "Hall of Fame", text: "Champions, career leaders and single-game records from every season.", href: "/hall-of-fame", cta: "Explore" },
+  );
+
+  const words = [...new Set([season.name, ...maps.map((m) => m.name), "WOW mode", "Chicken dinner"])];
 
   return (
     <div className="space-y-14">
-      <section className="full-bleed -mt-8 bg-brand text-brand-foreground sm:-mt-10">
-        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-10 sm:px-6 sm:py-14 lg:grid-cols-[1fr_minmax(0,520px)]">
-          <div>
-            <span className="inline-flex items-center gap-2 rounded-sm bg-hot px-2 py-1 font-heading text-xs font-bold tracking-widest uppercase">
-              {stage === "League stage" && <span className="size-1.5 animate-pulse rounded-full bg-white" />}
-              {stage}
-            </span>
-            <h1 className="mt-4 text-5xl leading-[0.95] sm:text-7xl">{season.name}</h1>
-            <p className="mt-4 max-w-xl text-sm text-white/70">
-              {teams.length} teams · {season.round_robins} round robin{season.round_robins > 1 ? "s" : ""} ·{" "}
-              {maps.map((m) => m.name).join(", ") || "maps TBA"} · top 4 to IPL-style playoffs
-            </p>
-            <div className="mt-6 flex flex-wrap gap-8">
-              {[
-                ["Games played", played.length],
-                ["Still to play", official.length - played.length],
-                ["Teams", teams.length],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <div className="font-heading text-4xl leading-none font-bold tabular">{value}</div>
-                  <div className="mt-1 text-xs font-medium tracking-wide text-white/60 uppercase">{label}</div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-7 flex flex-wrap gap-2">
-              <Button asChild className="bg-white font-semibold text-brand hover:bg-white/90">
-                <Link href={`${base}/table`}>Standings</Link>
-              </Button>
-              <Button asChild variant="outline" className="border-white/25 bg-transparent text-white hover:bg-white/10 hover:text-white">
-                <Link href={`${base}/schedule`}>Schedule</Link>
-              </Button>
-            </div>
-          </div>
-          {champion ? (
-            <Link href={`/teams/${champion.id}`} className="block overflow-hidden rounded-xl bg-brand-2 p-6 ring-1 ring-white/10 transition hover:ring-white/30">
-              <div className="flex items-center gap-2 font-heading text-sm font-bold tracking-widest text-gold uppercase">
-                <Crown className="size-4" /> {season.name} champions
-              </div>
-              <div className="mt-3 font-heading text-5xl leading-none font-extrabold uppercase italic">{champion.name}</div>
-            </Link>
-          ) : featured ? (
-            <FeaturedMatch view={featured} eyebrow={featured.completed ? "Latest result" : "Up next"} />
-          ) : null}
-        </div>
-      </section>
+      <div>
+        <HeroCarousel slides={slides} />
+        <TeamMarquee teams={teams.map((t) => lite(t)!)} words={words} />
+      </div>
+
+      <Reveal>
+        <PromoBanners promos={promos} />
+      </Reveal>
 
       <div className="grid gap-10 lg:grid-cols-[1fr_400px]">
         <div className="space-y-12">
-          {next.length > 1 && (
-            <section>
+          {next.length > 0 && (
+            <Reveal>
               <SectionTitle action={<MoreLink href={`${base}/schedule`}>Full schedule</MoreLink>}>Upcoming</SectionTitle>
               <div className="grid gap-3 sm:grid-cols-2">
-                {next.slice(1).map((v) => (
+                {next.map((v) => (
                   <GameCard key={v.game.id} view={v} idx={idx} showDate />
                 ))}
               </div>
-            </section>
+            </Reveal>
           )}
-          <section>
+          <Reveal>
             <SectionTitle action={<MoreLink href={`${base}/schedule`}>All results</MoreLink>}>Latest results</SectionTitle>
             {latest.length ? (
               <div className="grid gap-3 sm:grid-cols-2">
@@ -105,18 +221,20 @@ export default async function SeasonHome({ params }: PageProps<"/s/[season]">) {
             ) : (
               <EmptyState title="No results yet" />
             )}
-          </section>
+          </Reveal>
         </div>
-        <aside>
-          <SectionTitle action={<MoreLink href={`${base}/table`}>Full table</MoreLink>}>Standings</SectionTitle>
-          {table.length ? <StandingsTable rows={table} compact playoffLines /> : <EmptyState title="No teams yet" />}
-        </aside>
+        <Reveal delay={0.1}>
+          <aside>
+            <SectionTitle action={<MoreLink href={`${base}/table`}>Full table</MoreLink>}>Standings</SectionTitle>
+            {table.length ? <StandingsTable rows={table} compact playoffLines movement={standingsMovement(idx, season)} /> : <EmptyState title="No teams yet" />}
+          </aside>
+        </Reveal>
       </div>
 
-      <section>
+      <Reveal>
         <SectionTitle action={<MoreLink href={`${base}/stats`}>All stats</MoreLink>}>Stat leaders</SectionTitle>
-        <AwardCards rows={board} keys={["mvp", "kills", "revives"]} />
-      </section>
+        <AwardCards rows={board} keys={["mvp", "kills", "revives"]} interactive />
+      </Reveal>
     </div>
   );
 }

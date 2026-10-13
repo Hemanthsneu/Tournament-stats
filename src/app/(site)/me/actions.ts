@@ -66,6 +66,29 @@ export async function saveProfile(fd: FormData) {
   });
 }
 
+export async function saveAvailability(fd: FormData) {
+  return player(async (db) => {
+    const { data: playerId } = await db.rpc("my_player_id");
+    if (!playerId) throw new Error("Claim your profile first.");
+    const days = [...new Set(fd.getAll("day").map(Number))].filter((d) => Number.isInteger(d) && d >= 0 && d <= 6).sort();
+    const from = String(fd.get("time_from") ?? "") || null;
+    const to = String(fd.get("time_to") ?? "") || null;
+    if (from && to && from >= to) throw new Error("'Until' must be later than 'From'.");
+    const note = String(fd.get("note") ?? "").trim();
+    if (note.length > 160) throw new Error("Keep the note under 160 characters.");
+    const { error } = await db.from("player_availability").upsert({
+      player_id: playerId,
+      days,
+      time_from: from,
+      time_to: to,
+      note: note || null,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) throw new Error(error.message);
+    return days.length ? `Saved: ${days.length} day${days.length === 1 ? "" : "s"} a week` : "Saved (no days selected)";
+  });
+}
+
 export async function setAuctionRegistration(auctionId: string, join: boolean) {
   return player(async (db) => {
     const { error } = await db.rpc("auction_register", { p_auction_id: auctionId, p_join: join });

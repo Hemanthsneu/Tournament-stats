@@ -1,4 +1,6 @@
 import Link from "next/link";
+import CountUp from "@/components/reactbits/CountUp";
+import SpotlightCard from "@/components/reactbits/SpotlightCard";
 import { TeamLink, TeamLogo } from "@/components/team";
 import { AWARDS, rankBy, type AwardKey, type PlayerAgg } from "@/lib/engine/players";
 import { teamColor } from "@/lib/team-colors";
@@ -8,7 +10,8 @@ import { cn } from "@/lib/utils";
 const value = (row: PlayerAgg, key: AwardKey) =>
   key === "avgKills" ? row.avgKills.toFixed(2) : key === "mvp" ? num(row.mvp, Number.isInteger(row.mvp) ? 0 : 1) : String(row[key]);
 
-export function AwardCards({ rows, keys }: { rows: PlayerAgg[]; keys?: AwardKey[] }) {
+/** `interactive`: cursor spotlight in the leader's team colour and numbers that count up. */
+export function AwardCards({ rows, keys, interactive }: { rows: PlayerAgg[]; keys?: AwardKey[]; interactive?: boolean }) {
   const awards = keys ? AWARDS.filter((a) => keys.includes(a.key)) : AWARDS;
   return (
     <div className={cn("grid gap-4 sm:grid-cols-2", awards.length === 3 ? "lg:grid-cols-3" : awards.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3 xl:grid-cols-5")}>
@@ -16,8 +19,18 @@ export function AwardCards({ rows, keys }: { rows: PlayerAgg[]; keys?: AwardKey[
         const ranked = rankBy(rows, award.key).filter((r) => r[award.key] > 0);
         const [leader, ...rest] = ranked;
         const color = teamColor(leader?.team);
+        const Card = interactive ? SpotlightCard : "div";
+        const cardProps = interactive
+          ? {
+              theme: "light" as const,
+              spotlightColor: color,
+              intensity: 0.12,
+              className: "rounded-lg p-0",
+              style: { "--spotlight-card-surface": "var(--card)", "--spotlight-card-border": "var(--border)", "--spotlight-card-shadow": "none" } as React.CSSProperties,
+            }
+          : { className: "overflow-hidden rounded-lg border bg-card" };
         return (
-          <div key={award.key} className="overflow-hidden rounded-lg border bg-card">
+          <Card key={award.key} {...cardProps}>
             <div className="h-1.5" style={{ background: leader ? color : "var(--border)" }} />
             <div className="p-5">
               <div className="font-heading text-sm font-bold tracking-wide text-muted-foreground uppercase">{award.title}</div>
@@ -34,7 +47,9 @@ export function AwardCards({ rows, keys }: { rows: PlayerAgg[]; keys?: AwardKey[
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-heading text-5xl leading-none font-bold tabular">{value(leader, award.key)}</div>
+                      <div className="font-heading text-5xl leading-none font-bold tabular">
+                        {interactive && award.key !== "avgKills" ? <CountUp to={Number(value(leader, award.key))} duration={1.2} /> : value(leader, award.key)}
+                      </div>
                       <div className="mt-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{award.stat}</div>
                     </div>
                   </div>
@@ -57,7 +72,7 @@ export function AwardCards({ rows, keys }: { rows: PlayerAgg[]; keys?: AwardKey[
                 <p className="mt-3 text-sm text-muted-foreground">{rows.length ? "Not recorded yet" : "No games yet"}</p>
               )}
             </div>
-          </div>
+          </Card>
         );
       })}
     </div>

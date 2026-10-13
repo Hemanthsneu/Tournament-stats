@@ -585,3 +585,20 @@ export function teamFinish(idx: LeagueIndex, seasonId: string, teamId: string): 
   if (!row || row.played === 0) return null;
   return isLeagueComplete(idx, seasonId) ? ordinal(row.position) : `${ordinal(row.position)} (live)`;
 }
+
+/**
+ * League positions before the latest matchday was played, for ▲/▼ movement arrows.
+ * Returns team id → places gained (positive) or lost (negative); empty until two matchdays exist.
+ */
+export function standingsMovement(idx: LeagueIndex, season: Season): Map<string, number> {
+  const league = filterGames(idx, { seasonId: season.id, type: "official", stages: ["league"] });
+  const played = league.filter((g) => g.completed);
+  if (played.length === 0) return new Map();
+  const lastDay = Math.max(...played.map((g) => g.fixture.matchday ?? 0));
+  const before = played.filter((g) => (g.fixture.matchday ?? 0) < lastDay);
+  if (before.length === 0) return new Map();
+  const teams = seasonTeams(idx, season.id);
+  const prev = new Map(computeStandings(season, teams, before).map((r) => [r.team.id, r.position]));
+  const now = computeStandings(season, teams, league);
+  return new Map(now.map((r) => [r.team.id, (prev.get(r.team.id) ?? r.position) - r.position]));
+}

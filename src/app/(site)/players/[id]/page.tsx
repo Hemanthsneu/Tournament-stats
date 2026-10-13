@@ -6,7 +6,8 @@ import { EmptyState, SectionTitle } from "@/components/page-header";
 import { TeamLink } from "@/components/team";
 import { Button } from "@/components/ui/button";
 import { credits } from "@/lib/auction";
-import { loadCommunity, profileMap, verifiedSet } from "@/lib/community";
+import { AvailabilityBlock } from "@/components/availability";
+import { availabilityMap, loadCommunity, profileMap, verifiedSet } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
 import { playerCareer } from "@/lib/engine/players";
 import { num } from "@/lib/format";
@@ -30,6 +31,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
   const { player, totals, seasons, log, history, currentTeam } = career;
   const aliases = idx.data.aliases.filter((a) => a.player_id === id);
   const profile = profileMap(community).get(id);
+  const availability = availabilityMap(community).get(id);
   const verified = verifiedSet(community).has(id);
   const photo = profile?.photo_url ?? player.photo_url;
   const band = teamColor(currentTeam ?? log[0]?.team ?? null);
@@ -111,6 +113,16 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
           </dl>
         </div>
       </section>
+
+      {availability && availability.days.length > 0 && (
+        <div className="flex flex-wrap items-start gap-x-8 gap-y-3 rounded-lg border bg-card px-5 py-4">
+          <div>
+            <div className="font-heading text-sm font-bold tracking-wide uppercase">When they play</div>
+            <p className="mt-0.5 text-xs text-muted-foreground">Shared by the player for captains and organizers.</p>
+          </div>
+          <AvailabilityBlock availability={availability} />
+        </div>
+      )}
 
       {auctionHistory.length > 0 && (
         <div className="flex flex-wrap gap-2">

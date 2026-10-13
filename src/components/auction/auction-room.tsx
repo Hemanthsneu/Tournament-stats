@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import {
   BadgeCheck,
@@ -25,7 +26,12 @@ import { Input } from "@/components/ui/input";
 import { bidOptions, credits, lotBase, teamPurse } from "@/lib/auction";
 import { browserSupabase } from "@/lib/supabase/browser";
 import { teamColor } from "@/lib/team-colors";
-import type { AuctionLot, AuctionSnapshot, Team } from "@/lib/types";
+import type { AuctionLot, AuctionSnapshot, PlayerAvailability, Team } from "@/lib/types";
+import { AvailabilityBlock } from "@/components/availability";
+import ClickSpark from "@/components/reactbits/ClickSpark";
+import DecryptedText from "@/components/reactbits/DecryptedText";
+import ShinyText from "@/components/reactbits/ShinyText";
+import { ScoutingBoard } from "./scouting-board";
 import { cn } from "@/lib/utils";
 import { countWord, useAnnouncer } from "./announcer";
 
@@ -38,6 +44,7 @@ export interface RoomPlayer {
   verified: boolean;
   lastTeam: string | null;
   stats: { games: number; kills: number; revives: number; mvp: number; potm: number; avgKills: number } | null;
+  availability: PlayerAvailability | null;
 }
 
 interface Props {
@@ -58,6 +65,7 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [flash, setFlash] = useState(0);
+  const reduceMotion = useReducedMotion();
   const [unsoldBase, setUnsoldBase] = useState("");
   const offset = useRef(0);
   const bestRtt = useRef(Infinity);
@@ -316,12 +324,29 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
                   )}
                   <span className="text-muted-foreground">Base {credits(lotBase(a, lot))}</span>
                 </div>
-                <h2 className={cn("mt-2 font-heading leading-[0.9] font-extrabold uppercase", screen ? "text-7xl sm:text-8xl" : "text-5xl sm:text-7xl")}>
-                  {player.ign}
+                <h2 aria-label={player.ign} className={cn("mt-2 font-heading leading-[0.9] font-extrabold uppercase", screen ? "text-7xl sm:text-8xl" : "text-5xl sm:text-7xl")}>
+                  {reduceMotion ? (
+                    player.ign
+                  ) : (
+                    // Scrambles in each time a player is drawn (or re-drawn).
+                    <DecryptedText
+                      key={`${lot.id}:${lot.draw_no}`}
+                      text={player.ign}
+                      animateOn="view"
+                      sequential
+                      speed={70}
+                      characters="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&@"
+                      encryptedClassName="text-hot"
+                    />
+                  )}
                 </h2>
                 {player.lastTeam && <p className="mt-1 text-sm text-muted-foreground">Last played for {player.lastTeam}</p>}
                 {player.bio && <p className="mt-2 max-w-xl text-sm text-muted-foreground">“{player.bio}”</p>}
                 <StatChips player={player} />
+                <div className="mt-5 rounded-lg bg-white/5 p-3">
+                  <div className="mb-1.5 font-heading text-xs font-bold tracking-widest text-muted-foreground uppercase">Availability</div>
+                  <AvailabilityBlock availability={player.availability} />
+                </div>
 
                 <div className="mt-6 flex flex-wrap items-end gap-6">
                   <div>
@@ -557,48 +582,8 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
         </div>
       </section>
 
-      {/* Pool */}
-      {!screen && (
-        <section className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-xl border bg-card p-4">
-            <h2 className="mb-3 font-heading text-lg font-bold tracking-wide uppercase">Still in the pool ({pool.length})</h2>
-            {pool.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nobody left.</p>
-            ) : (
-              <div className="space-y-3">
-                {[...new Set(pool.map((l) => l.set_name))].map((set) => (
-                  <div key={set}>
-                    <div className="mb-1 text-xs text-muted-foreground">{set}</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {pool
-                        .filter((l) => l.set_name === set)
-                        .map((l) => (
-                          <Link key={l.id} href={`/players/${l.player_id}`} className="rounded-md border px-2 py-0.5 text-sm hover:border-primary/50">
-                            {ign(l.player_id)}
-                          </Link>
-                        ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="rounded-xl border bg-card p-4">
-            <h2 className="mb-3 font-heading text-lg font-bold tracking-wide uppercase">Unsold ({unsold.length})</h2>
-            {unsold.length === 0 ? (
-              <p className="text-sm text-muted-foreground">None so far.</p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {unsold.map((l) => (
-                  <span key={l.id} className="rounded-md border border-dashed px-2 py-0.5 text-sm text-muted-foreground">
-                    {ign(l.player_id)}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-      )}
+      {/* Scouting board: availability + form for everyone still to come */}
+      {!screen && <ScoutingBoard auctionId={auctionId} lots={snap.lots} players={players} canShortlist={!!viewer.captainTeamId} />}
     </div>
   );
 }
@@ -608,8 +593,9 @@ export function AuctionRoom({ auctionId, initial, players, teams, viewer, screen
 function StatusBadge({ status }: { status: string }) {
   if (status === "live")
     return (
-      <Badge className="gap-1.5 bg-loss-soft text-loss">
-        <span className="size-2 animate-pulse rounded-full bg-white" /> LIVE
+      <Badge className="gap-1.5 bg-hot font-heading font-bold tracking-widest whitespace-nowrap text-white">
+        <span className="size-2 animate-pulse rounded-full bg-white" />
+        <ShinyText text="LIVE" color="#ffffff" shineColor="#ffd84d" speed={2} />
       </Badge>
     );
   if (status === "paused") return <Badge variant="secondary">Paused</Badge>;
@@ -731,7 +717,7 @@ function CaptainPanel({
         </div>
       </div>
       {options.length > 0 && (
-        <div className="mt-4 grid gap-2">
+        <ClickSpark sparkColor={["#ff2d4b", "#fbbf24", "#ffffff"]} sparkCount={10} sparkRadius={26} className="mt-4 grid h-auto gap-2">
           <Button size="lg" className="h-14 text-lg" disabled={busy || !!reason} onClick={() => onBid(options[0])}>
             <Gavel /> Bid {credits(options[0])}
           </Button>
@@ -742,7 +728,7 @@ function CaptainPanel({
               </Button>
             ))}
           </div>
-        </div>
+        </ClickSpark>
       )}
       {reason && <p className="mt-2 text-center text-xs text-muted-foreground">{reason}</p>}
     </div>
@@ -774,9 +760,11 @@ function MobileBidBar({
           <div className="text-2xl font-medium tabular">{credits(price)}</div>
         </div>
         <div className={cn("text-2xl font-medium tabular", danger && "text-loss")}>{secs}s</div>
-        <Button size="lg" className="ml-auto h-12 flex-1 text-base" disabled={disabled || leading} onClick={() => onBid(next)}>
-          <Gavel /> {leading ? "Leading" : `Bid ${credits(next)}`}
-        </Button>
+        <ClickSpark sparkColor={["#ff2d4b", "#fbbf24"]} sparkCount={10} sparkRadius={24} className="ml-auto h-auto w-auto flex-1">
+          <Button size="lg" className="h-12 w-full text-base" disabled={disabled || leading} onClick={() => onBid(next)}>
+            <Gavel /> {leading ? "Leading" : `Bid ${credits(next)}`}
+          </Button>
+        </ClickSpark>
       </div>
     </div>
   );

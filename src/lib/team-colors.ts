@@ -20,11 +20,15 @@ function hash(s: string): number {
   return h;
 }
 
-/** Fills missing team colours so that teams get different defaults (stable per team id). */
+/**
+ * Fills missing team colours so teams get different defaults. Teams are handled oldest first, so
+ * adding a new team never changes the colour of an existing one.
+ */
 export function withTeamColors<T extends Team>(teams: T[]): T[] {
   const used = new Set(teams.map((t) => t.color?.toLowerCase()).filter(Boolean));
   const chosen = new Map<string, string>();
-  for (const t of [...teams].sort((a, b) => a.id.localeCompare(b.id))) {
+  const oldestFirst = [...teams].sort((a, b) => (a.created_at ?? "").localeCompare(b.created_at ?? "") || a.id.localeCompare(b.id));
+  for (const t of oldestFirst) {
     if (t.color) continue;
     let i = hash(t.id) % TEAM_PALETTE.length;
     for (let n = 0; n < TEAM_PALETTE.length && used.has(TEAM_PALETTE[i].hex); n++) i = (i + 1) % TEAM_PALETTE.length;

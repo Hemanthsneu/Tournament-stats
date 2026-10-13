@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { loadCommunity, verifiedSet } from "@/lib/community";
+import { WeekStrip } from "@/components/availability";
+import { timeWindow } from "@/lib/availability";
+import { availabilityMap, loadCommunity, verifiedSet } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
 import { filterGames, sortedSeasons } from "@/lib/engine/league";
 import { playerLeaderboard } from "@/lib/engine/players";
@@ -47,6 +49,7 @@ export default async function AuctionSetup({ params }: PageProps<"/admin/auction
     .filter((l) => l.auction_id === id)
     .sort((a, b) => a.set_order - b.set_order || (idx.playerById.get(a.player_id)?.ign ?? "").localeCompare(idx.playerById.get(b.player_id)?.ign ?? ""));
   const inPool = new Set(lots.map((l) => l.player_id));
+  const availability = availabilityMap(community);
   const captains = new Set(teams.map((t) => t.captain_player_id).filter(Boolean));
   const players = [...idx.data.players].sort((a, b) => a.ign.localeCompare(b.ign));
   const available = players.filter((p) => !inPool.has(p.id) && !captains.has(p.id));
@@ -291,6 +294,7 @@ export default async function AuctionSetup({ params }: PageProps<"/admin/auction
                 <tr className="border-b bg-muted/50 font-heading text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
                   <th className="px-2 py-2 text-left font-semibold">Player</th>
                   <th className="px-2 py-2 text-left font-semibold">Career</th>
+                  <th className="px-2 py-2 text-left font-semibold">Availability</th>
                   <th className="px-2 py-2 text-left font-semibold">Set / order / base price</th>
                   <th className="px-2 py-2 text-left font-semibold">Status</th>
                   <th className="px-2 py-2" />
@@ -309,6 +313,10 @@ export default async function AuctionSetup({ params }: PageProps<"/admin/auction
                       </td>
                       <td className="px-2 py-2 text-xs text-muted-foreground tabular">
                         {s ? `${s.games} G · ${s.kills} K · ${s.revives} R · ${Math.round(s.mvp)} MVP` : "New player"}
+                      </td>
+                      <td className="px-2 py-2 text-xs text-muted-foreground">
+                        <WeekStrip availability={availability.get(l.player_id)} size="xs" />
+                        {availability.get(l.player_id)?.days.length ? <div className="mt-0.5">{timeWindow(availability.get(l.player_id)!)}</div> : <div className="mt-0.5">Not shared</div>}
                       </td>
                       <td className="px-2 py-2">
                         <ActionForm action={updateLot.bind(null, l.id)} className="flex gap-1">

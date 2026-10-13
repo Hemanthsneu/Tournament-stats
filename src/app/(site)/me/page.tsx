@@ -3,12 +3,13 @@ import { redirect } from "next/navigation";
 import { BadgeCheck, Gavel, LogOut } from "@/components/icons";
 import { ActionButton } from "@/components/admin/action-form";
 import { ClaimForm } from "@/components/account/claim-form";
+import { AvailabilityForm } from "@/components/account/availability-form";
 import { ProfileForm } from "@/components/account/profile-form";
 import { Panel } from "@/components/admin/fields";
 import { TeamLink } from "@/components/team";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getViewer, loadCommunity, profileMap } from "@/lib/community";
+import { availabilityMap, getViewer, loadCommunity, profileMap } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
 import { playerCareer } from "@/lib/engine/players";
 import { setAuctionRegistration, signOutPlayer } from "./actions";
@@ -160,6 +161,13 @@ export default async function MePage() {
           </Panel>
         );
       })}
+
+      <Panel
+        title="Your availability"
+        description="When can you play? Captains see this on your auction card before they bid, so keep it honest and up to date."
+      >
+        <AvailabilityForm availability={availabilityMap(community).get(player.id) ?? null} />
+      </Panel>
 
       <Panel title="Edit your profile" description="This shows on your public player page and your auction card. Your stats can only be changed by organizers.">
         <ProfileForm playerId={player.id} profile={profile} fallbackInitials={player.ign.slice(0, 2).toUpperCase()} />

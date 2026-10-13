@@ -27,6 +27,7 @@ export interface Team {
   logo_url: string | null;
   /** Hex colour picked by organizers; filled with a distinct default when loading. */
   color?: string | null;
+  created_at?: string;
 }
 
 export interface SeasonTeam {
@@ -237,7 +238,18 @@ export interface AuctionSnapshot {
   bids: AuctionBid[];
 }
 
+export interface PlayerAvailability {
+  player_id: string;
+  /** 0 = Sunday … 6 = Saturday */
+  days: number[];
+  time_from: string | null;
+  time_to: string | null;
+  note: string | null;
+  updated_at: string;
+}
+
 export interface CommunityData {
+  availability: PlayerAvailability[];
   accounts: PlayerAccount[];
   profiles: PlayerProfile[];
   auctions: Auction[];

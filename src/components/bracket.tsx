@@ -47,19 +47,34 @@ export function SeriesCard({ series, stage }: { series: SeriesView | undefined; 
       </div>
       <SeriesRow team={series?.teamA ?? null} wins={series?.winsA ?? 0} won={!!winner && winner === series?.teamA?.id} placeholder={phA} />
       <SeriesRow team={series?.teamB ?? null} wins={series?.winsB ?? 0} won={!!winner && winner === series?.teamB?.id} placeholder={phB} />
-      {series && series.games.some((g) => g.completed) && (
-        <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+      {series && series.games.length > 0 && (
+        <ul className="grid gap-1 px-4 pb-3">
           {series.games.map((g) => (
-            <Link
-              key={g.game.id}
-              href={`/games/${g.game.id}`}
-              className="rounded-md bg-muted px-2 py-0.5 text-xs tabular text-muted-foreground transition-colors hover:text-foreground"
-            >
-              G{g.game.game_no}
-              {g.completed ? ` ${g.game.team_a_rounds}–${g.game.team_b_rounds}` : ""}
-            </Link>
+            <li key={g.game.id}>
+              <Link
+                href={`/games/${g.game.id}`}
+                className={cn(
+                  "flex items-center gap-2 rounded-md bg-muted px-2 py-1 text-xs tabular text-muted-foreground transition-colors hover:text-foreground",
+                  g.playoffNote === "not_needed" && "opacity-60",
+                )}
+              >
+                <span className="font-heading font-bold text-foreground">G{g.game.game_no}</span>
+                <span className="min-w-0 flex-1 truncate">{g.map ? `${g.map.name} · ${g.map.total_rounds}R` : "Map TBD"}</span>
+                {g.completed ? (
+                  <span className="font-semibold text-foreground">
+                    {g.game.team_a_rounds}–{g.game.team_b_rounds}
+                  </span>
+                ) : g.playoffNote === "not_needed" ? (
+                  <span>Not needed</span>
+                ) : g.playoffNote === "if_needed" ? (
+                  <span className="text-gold">If needed</span>
+                ) : g.game.scheduled_at ? (
+                  <span>{fmtDate(g.game.scheduled_at)}</span>
+                ) : null}
+              </Link>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
       <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">{NOTES[stage]}</p>
     </div>

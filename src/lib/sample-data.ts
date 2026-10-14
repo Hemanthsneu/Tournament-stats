@@ -296,10 +296,16 @@ export function buildSampleData(): LeagueData {
           potm_player_id: null,
         });
       }
-      data.games = data.games.filter((g) => !plan.deleteGameIds.includes(g.id));
+      // Skip game 3 of a series already won 2–0.
+      const decided = (fixtureId: string) => {
+        const won = data.games
+          .filter((g) => g.fixture_id === fixtureId && g.status === "completed")
+          .map((g) => ((g.team_a_rounds ?? 0) > (g.team_b_rounds ?? 0) ? "a" : "b"));
+        return won.filter((w) => w === "a").length >= 2 || won.filter((w) => w === "b").length >= 2;
+      };
       const next = orderedSeasonGames(season).find((g) => {
         const f = data.fixtures.find((x) => x.id === g.fixture_id)!;
-        return g.status !== "completed" && f.team_a_id && f.team_b_id;
+        return g.status !== "completed" && f.team_a_id && f.team_b_id && !decided(f.id);
       });
       if (!next) break;
       playGame(season, data.fixtures.find((x) => x.id === next.fixture_id)!, next);

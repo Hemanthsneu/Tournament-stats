@@ -95,7 +95,4 @@ export async function syncPlayoffs(db: SupabaseClient, seasonId: string): Promis
     const scheduled = g2?.scheduled_at ? new Date(new Date(g2.scheduled_at).getTime() + 45 * 60_000).toISOString() : null;
     must(await db.from("games").insert({ ...cg, scheduled_at: scheduled }));
   }
-  if (plan.deleteGameIds.length) {
-    must(await db.from("games").delete().in("id", plan.deleteGameIds));
-  }
 }

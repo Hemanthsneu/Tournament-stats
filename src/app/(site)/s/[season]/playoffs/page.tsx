@@ -22,7 +22,7 @@ export default async function PlayoffsPage({ params }: PageProps<"/s/[season]/pl
     <div>
       <PageHeader
         title="Playoffs"
-        subtitle={`${season.name} · IPL format · every series is best of 3 (both maps, then a decider if it's 1–1)`}
+        subtitle={`${season.name} · IPL format · every series is best of 3 (game 3 is played only if it's 1–1)`}
       />
       {series.size === 0 ? (
         <EmptyState title="Playoffs not scheduled">Playoffs need at least 4 teams and a published schedule.</EmptyState>

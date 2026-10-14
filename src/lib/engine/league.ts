@@ -15,6 +15,7 @@ import {
   type TiebreakKey,
 } from "../types";
 import { dateKey } from "../time";
+import { playoffMapOrder } from "./schedule";
 
 // ---------------------------------------------------------------------------
 // Index: lookup maps + a denormalised view of every game
@@ -38,6 +39,8 @@ export interface GameView {
   revivesB: number;
   /** "Match 12", "Qualifier 1 · Game 2", "Practice 3" */
   label: string;
+  /** Unplayed playoff games: game 3 before a 1–1 ("if_needed"), or any game after a series is won ("not_needed"). */
+  playoffNote: "if_needed" | "not_needed" | null;
 }
 
 export interface LeagueIndex {
@@ -140,6 +143,7 @@ export function buildIndex(data: LeagueData): LeagueIndex {
       revivesA: sum(statsA.map((s) => s.revives)),
       revivesB: sum(statsB.map((s) => s.revives)),
       label: "",
+      playoffNote: null,
     });
   }
   views.sort(compareGames);
@@ -154,6 +158,18 @@ export function buildIndex(data: LeagueData): LeagueIndex {
       v.label = v.fixture.stage === "league" ? `Match ${n}` : `Practice ${n}`;
     } else {
       v.label = `${STAGE_LABELS[v.fixture.stage]} · Game ${v.game.game_no}`;
+    }
+  }
+
+  // Best-of-3 series: mark games that can no longer be needed, and game 3 until it's 1–1.
+  for (const [, games] of groupBy(
+    views.filter((v) => PLAYOFF_STAGES.includes(v.fixture.stage as PlayoffStage)),
+    (v) => v.fixture.id,
+  )) {
+    const { winsA, winsB, winnerId } = seriesFromGames(games[0].fixture.team_a_id, games[0].fixture.team_b_id, games);
+    for (const v of games) {
+      if (v.completed) continue;
+      v.playoffNote = winnerId ? "not_needed" : v.game.game_no === 3 && !(winsA === 1 && winsB === 1) ? "if_needed" : null;
     }
   }
 
@@ -227,7 +243,7 @@ export function seasonMaps(idx: LeagueIndex, seasonId: string): GameMap[] {
 /** Next game to be played (earliest scheduled among unplayed games with both teams known). */
 export function upNext(games: GameView[], count = 1): GameView[] {
   return games
-    .filter((v) => !v.completed && v.teamA && v.teamB)
+    .filter((v) => !v.completed && v.teamA && v.teamB && v.playoffNote !== "not_needed")
     .sort((a, b) => {
       const ta = a.game.scheduled_at ?? "9999";
       const tb = b.game.scheduled_at ?? "9999";
@@ -506,18 +522,18 @@ export function playoffSeries(idx: LeagueIndex, seasonId: string): Map<PlayoffSt
 export interface PlayoffPlan {
   fixtureTeams: { fixture_id: string; team_a_id: string | null; team_b_id: string | null }[];
   createGames: { fixture_id: string; game_no: number; map_id: string | null }[];
-  deleteGameIds: string[];
 }
 
 /**
  * Works out what the playoff fixtures should look like right now:
  * - Q1 (1v2) and Eliminator (3v4) seeded from the final league table once every league game is done
  * - Q2 = loser Q1 vs winner Eliminator, Final = winner Q1 vs winner Q2
- * - a decider (game 3) only when a series is 1–1, removed again if a correction makes it 2–0
+ * - every series has games 1–3; a missing game 3 is added (older schedules made it only at 1–1).
+ *   Game 3 is only played at 1–1; otherwise it shows as "if needed" / "not needed".
  * A series with any completed game keeps its teams (locked).
  */
 export function planPlayoffs(idx: LeagueIndex, seasonId: string): PlayoffPlan {
-  const plan: PlayoffPlan = { fixtureTeams: [], createGames: [], deleteGameIds: [] };
+  const plan: PlayoffPlan = { fixtureTeams: [], createGames: [] };
   const season = idx.seasonById.get(seasonId);
   if (!season) return plan;
   const series = playoffSeries(idx, seasonId);
@@ -528,7 +544,7 @@ export function planPlayoffs(idx: LeagueIndex, seasonId: string): PlayoffPlan {
     const table = leagueStandings(idx, season);
     seeds = [0, 1, 2, 3].map((i) => table[i]?.team.id ?? null);
   }
-  const defaultDeciderMap = seasonMaps(idx, seasonId)[0]?.id ?? null;
+  const deciderMap = playoffMapOrder(seasonMaps(idx, seasonId))[2] ?? null;
 
   const settle = (stage: PlayoffStage, want: [string | null, string | null]) => {
     const s = series.get(stage);
@@ -539,18 +555,9 @@ export function planPlayoffs(idx: LeagueIndex, seasonId: string): PlayoffPlan {
       plan.fixtureTeams.push({ fixture_id: s.fixture.id, team_a_id: a, team_b_id: b });
     }
 
-    const g1 = s.games.find((g) => g.game.game_no === 1);
-    const g2 = s.games.find((g) => g.game.game_no === 2);
-    const g3 = s.games.find((g) => g.game.game_no === 3);
-    const tied = !!(g1?.completed && g2?.completed && g1.winnerId !== g2.winnerId);
-    if (a && b && tied && !g3) {
-      plan.createGames.push({
-        fixture_id: s.fixture.id,
-        game_no: 3,
-        map_id: defaultDeciderMap ?? g1!.game.map_id,
-      });
+    if (!s.games.some((g) => g.game.game_no === 3)) {
+      plan.createGames.push({ fixture_id: s.fixture.id, game_no: 3, map_id: deciderMap ?? s.games[0]?.game.map_id ?? null });
     }
-    if (g3 && !tied && !g3.completed) plan.deleteGameIds.push(g3.game.id);
 
     return locked ? seriesFromGames(a, b, s.games) : { winnerId: null, loserId: null };
   };

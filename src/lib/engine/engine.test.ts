@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateSchedule, roundRobinMatchdays } from "./schedule";
+import { generateSchedule, playoffMapOrder, roundRobinMatchdays } from "./schedule";
 import {
   buildIndex,
   computeStandings,
@@ -10,6 +10,7 @@ import {
   playoffSeries,
   standingsMovement,
   teamFinish,
+  upNext,
 } from "./league";
 import { playerCareer, playerLeaderboard, rankBy, suggestPotm } from "./players";
 import { buildSampleData } from "../sample-data";
@@ -191,7 +192,7 @@ describe("computeStandings", () => {
 });
 
 describe("playoffs", () => {
-  it("seeds Q1/Eliminator, creates a decider only at 1–1, and advances winners", () => {
+  it("seeds Q1/Eliminator, keeps game 3 for every series (needed only at 1–1), and advances winners", () => {
     const { data, game } = league(["A", "B", "C", "D", "E"]);
     // A > B > C > D > E by points
     const results: [string, string][] = [
@@ -251,7 +252,6 @@ describe("playoffs", () => {
           potm_player_id: null,
         });
       }
-      data.games = data.games.filter((g) => !plan.deleteGameIds.includes(g.id));
       return plan;
     };
     const result = (id: string, a: number, b: number) => {
@@ -261,19 +261,25 @@ describe("playoffs", () => {
       g.status = "completed";
     };
 
-    apply();
+    // Older schedules have only games 1–2: game 3 is added to every series.
+    expect(apply().createGames).toHaveLength(4);
+    expect(apply().createGames).toHaveLength(0);
+    expect(buildIndex(data).viewById.get("p0g3")!.playoffNote).toBe("if_needed");
     expect(data.fixtures.find((f) => f.id === "p0")).toMatchObject({ team_a_id: "A", team_b_id: "B" });
     expect(data.fixtures.find((f) => f.id === "p1")).toMatchObject({ team_a_id: "C", team_b_id: "D" });
 
-    // Q1: A wins game 1, B wins game 2 → decider
+    // Q1: A wins game 1, B wins game 2 → game 3 is the decider
     result("p0g1", 12, 9);
     result("p0g2", 9, 12);
-    expect(apply().createGames).toHaveLength(1);
+    expect(buildIndex(data).viewById.get("p0g3")!.playoffNote).toBeNull();
     result("p0g3", 9, 12); // B wins Q1 2–1
-    // Eliminator: C wins 2–0, no decider
+    // Eliminator: C wins 2–0, so game 3 isn't needed (and isn't up next)
     result("p1g1", 12, 9);
     result("p1g2", 12, 9);
-    expect(apply().createGames).toHaveLength(0);
+    apply();
+    const mid = buildIndex(data);
+    expect(mid.viewById.get("p1g3")!.playoffNote).toBe("not_needed");
+    expect(upNext(filterGames(mid, { seasonId: "s1" }), 10).map((v) => v.game.id)).not.toContain("p1g3");
     expect(data.fixtures.find((f) => f.id === "p2")).toMatchObject({ team_a_id: "A", team_b_id: "C" });
     expect(data.fixtures.find((f) => f.id === "p3")).toMatchObject({ team_a_id: "B", team_b_id: null });
 
@@ -370,5 +376,21 @@ describe("calendar-planned seasons", () => {
     const { data, game } = league(["A", "B"]);
     game("A", "B", null, null);
     expect(isCalendarSeason(buildIndex(data), "s1")).toBe(false);
+  });
+});
+
+describe("playoff maps", () => {
+  it("defaults to the longest maps first: 23, 21, then 19 rounds", () => {
+    const pool = [
+      { id: "cr21", total_rounds: 21 },
+      { id: "rr19a", total_rounds: 19 },
+      { id: "cr23", total_rounds: 23 },
+      { id: "rr19b", total_rounds: 19 },
+    ];
+    expect(playoffMapOrder(pool)).toEqual(["cr23", "cr21", "rr19a"]);
+    expect(playoffMapOrder([{ id: "only", total_rounds: 21 }])).toEqual(["only", "only", "only"]);
+    const fx = generateSchedule({ teamIds: ["A", "B", "C", "D"], mapIds: ["cr21", "rr19a"], roundRobins: 1, playoffMapIds: playoffMapOrder(pool) });
+    const q1 = fx.find((f) => f.stage === "qualifier_1")!;
+    expect(q1.games.map((g) => `${g.game_no}:${g.map_id}`)).toEqual(["1:cr23", "2:cr21", "3:rr19a"]);
   });
 });

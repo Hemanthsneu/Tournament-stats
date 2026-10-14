@@ -185,6 +185,8 @@ export interface Auction {
   countdown_seconds: number;
   auto_next_seconds: number;
   voice_enabled: boolean;
+  /** Planned start, shown to players as a countdown (optional). */
+  starts_at?: string | null;
   /** Practice runs: same room, clearly labelled, never written to rosters or stats. */
   is_practice: boolean;
   current_lot_id: string | null;

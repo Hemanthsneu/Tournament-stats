@@ -40,4 +40,7 @@ export {
   SpeakerHighIcon as Volume2,
   SpeakerSlashIcon as VolumeX,
   XIcon as X,
+  EyeIcon as Eye,
+  BellRingingIcon as BellRinging,
+  CalendarPlusIcon as CalendarPlus,
 } from "@phosphor-icons/react/ssr";

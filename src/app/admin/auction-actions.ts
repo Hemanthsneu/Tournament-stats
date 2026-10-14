@@ -5,6 +5,7 @@ import { int, must, optionalText, run, text, UserError, type ActionResult } from
 import { fetchLeagueData } from "@/lib/data";
 import { buildIndex, filterGames } from "@/lib/engine/league";
 import { playerLeaderboard, rankBy } from "@/lib/engine/players";
+import { fromZonedInput } from "@/lib/time";
 import type { AuctionIncrement } from "@/lib/types";
 
 /** "200:10, 500:25, *:50" → below 200 step 10, below 500 step 25, above that step 50. */
@@ -69,6 +70,7 @@ export async function updateAuctionSettings(auctionId: string, fd: FormData) {
           auto_next_seconds: int(fd, "auto_next_seconds", { min: 0, max: 120, label: "Auto next player" }),
           voice_enabled: fd.get("voice_enabled") === "on",
           registration_open: fd.get("registration_open") === "on",
+          starts_at: fromZonedInput(String(fd.get("starts_at") ?? "")),
         })
         .eq("id", auctionId),
     );

@@ -13,6 +13,7 @@ import { WeekStrip } from "@/components/availability";
 import { timeWindow } from "@/lib/availability";
 import { availabilityMap, loadCommunity, verifiedSet } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
+import { toZonedInput, tzLabel } from "@/lib/time";
 import { filterGames, sortedSeasons } from "@/lib/engine/league";
 import { playerLeaderboard } from "@/lib/engine/players";
 import {
@@ -145,6 +146,14 @@ export default async function AuctionSetup({ params }: PageProps<"/admin/auction
                 </NativeSelect>
               </Field>
             </div>
+            <TextField
+              label={`Starts at (${tzLabel()})`}
+              name="starts_at"
+              type="datetime-local"
+              defaultValue={toZonedInput(auction.starts_at ?? null)}
+              hint="Optional. Players see a countdown on the auction page and the home page."
+              className="sm:max-w-xs"
+            />
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <TextField label="Purse per team" name="purse" type="number" min={1} defaultValue={auction.purse} />
               <TextField label="Base price" name="base_price" type="number" min={0} defaultValue={auction.base_price} />

@@ -31,6 +31,7 @@ import { AvailabilityBlock } from "@/components/availability";
 import ClickSpark from "@/components/reactbits/ClickSpark";
 import DecryptedText from "@/components/reactbits/DecryptedText";
 import ShinyText from "@/components/reactbits/ShinyText";
+import { MyStatus, ReactionBar, ReactionLayer, StartCountdown, useAlerts, useAuctionLive, WatchingCount } from "./live-extras";
 import { ScoutingBoard } from "./scouting-board";
 import { cn } from "@/lib/utils";
 import { countWord, useAnnouncer } from "./announcer";
@@ -55,7 +56,7 @@ interface Props {
   players: Record<string, RoomPlayer>;
   matchDays: { day: string; label: string | null }[];
   teams: Record<string, Team>;
-  viewer: { isAdmin: boolean; captainTeamId: string | null; signedIn: boolean };
+  viewer: { isAdmin: boolean; captainTeamId: string | null; signedIn: boolean; playerId?: string | null; userId?: string | null };
   screen: boolean;
 }
 
@@ -75,6 +76,8 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
   const prev = useRef<AuctionSnapshot | null>(null);
   const announcer = useAnnouncer();
   const { speak, sfx } = announcer;
+  const live = useAuctionLive(sb, auctionId, viewer.userId ?? null);
+  const alerts = useAlerts();
 
   // ---- data: one consistent snapshot, refreshed on every realtime change (+ slow polling fallback)
   const refresh = useCallback(async () => {
@@ -246,6 +249,24 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
   const myPurse = a && myTeam ? teamPurse(a, myTeam) : null;
   const leader = lot?.current_team_id ?? null;
 
+  // The signed-in player's own lot, and an alert when they're drawn or sold.
+  const myLot = viewer.playerId ? snap.lots.find((l) => l.player_id === viewer.playerId) ?? null : null;
+  const onBlock = !!lot && !!viewer.playerId && lot.player_id === viewer.playerId;
+  const myState = onBlock ? "block" : myLot?.status ?? "";
+  const prevMyState = useRef(myState);
+  useEffect(() => {
+    const before = prevMyState.current;
+    prevMyState.current = myState;
+    if (before === myState || !a) return;
+    if (myState === "block") {
+      toast("You're on the block now!", { description: "Captains are bidding on you." });
+      alerts.notify("You're on the block!", `${a.name}: captains are bidding on you now.`);
+    } else if (before === "block" && myState === "sold" && myLot) {
+      const to = teams[myLot.sold_team_id ?? ""]?.name ?? "a team";
+      alerts.notify(`Sold to ${to}!`, `${a.name}: ${to} bought you for ${credits(myLot.sold_price ?? 0)}.`);
+    }
+  }, [myState, myLot, a, teams, alerts]);
+
   const recentClosed = useMemo(
     () =>
       snap.lots
@@ -269,6 +290,7 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
         <h1 className={cn("leading-none", screen ? "text-5xl sm:text-6xl" : "text-4xl sm:text-5xl")}>{a.name}</h1>
         <StatusBadge status={a.status} />
         {a.is_practice && <Badge className="bg-info-soft text-info">PRACTICE</Badge>}
+        <WatchingCount count={live.watching} big={screen} />
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {a.voice_enabled && a.status !== "completed" && (
             <Button variant={announcer.enabled ? "default" : "outline"} size="sm" onClick={announcer.toggle}>
@@ -302,97 +324,125 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
         </div>
       )}
 
-      <div className={cn("grid gap-6", !screen && "lg:grid-cols-[1fr_340px]", screen && "xl:grid-cols-[1fr_380px]")}>
-        {/* Stage */}
-        <section
-          className={cn(
-            "dark relative overflow-hidden rounded-xl bg-brand p-6 text-foreground sm:p-10",
-            inCountdown && "border-loss/70",
-          )}
-        >
-          {lot && player ? (
-            <div className="grid gap-6 md:grid-cols-[auto_1fr]">
-              <PlayerPhoto player={player} big={screen} />
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <Badge variant="outline">
-                    {lot.set_name}
-                    {lot.round > 1 ? ` · round ${lot.round}` : ""}
-                  </Badge>
-                  {player.role && <Badge variant="secondary">{player.role}</Badge>}
-                  {player.verified && (
-                    <span className="inline-flex items-center gap-1 text-win">
-                      <BadgeCheck className="size-3.5" /> Verified
-                    </span>
-                  )}
-                  <span className="text-muted-foreground">Base {credits(lotBase(a, lot))}</span>
-                </div>
-                <h2 aria-label={player.ign} className={cn("mt-2 font-heading leading-[0.9] font-extrabold uppercase", screen ? "text-7xl sm:text-8xl" : "text-5xl sm:text-7xl")}>
-                  {reduceMotion ? (
-                    player.ign
-                  ) : (
-                    // Scrambles in each time a player is drawn (or re-drawn).
-                    <DecryptedText
-                      key={`${lot.id}:${lot.draw_no}`}
-                      text={player.ign}
-                      animateOn="view"
-                      sequential
-                      speed={70}
-                      characters="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&@"
-                      encryptedClassName="text-hot"
-                    />
-                  )}
-                </h2>
-                {player.lastTeam && <p className="mt-1 text-sm text-muted-foreground">Last played for {player.lastTeam}</p>}
-                {player.bio && <p className="mt-2 max-w-xl text-sm text-muted-foreground">“{player.bio}”</p>}
-                <StatChips player={player} />
-                <div className="mt-5 rounded-lg bg-white/5 p-3">
-                  <div className="mb-1.5 font-heading text-xs font-bold tracking-widest text-muted-foreground uppercase">Availability</div>
-                  <AvailabilityBlock availability={player.availability} dates={matchDays.length ? { days: matchDays, answers: player.dates } : undefined} />
-                </div>
+      {!screen && viewer.playerId && !myTeam && (
+        <MyStatus
+          lot={myLot}
+          onBlock={onBlock}
+          poolLeft={pool.length}
+          soldTo={myLot?.sold_team_id ? teams[myLot.sold_team_id] ?? null : null}
+          leader={leader ? teamName(leader) : null}
+          bid={lot?.current_bid ?? null}
+          canRegister={a.registration_open && a.status === "setup"}
+          alerts={alerts}
+        />
+      )}
 
-                <div className="mt-6 flex flex-wrap items-end gap-6">
-                  <div>
-                    <div className="text-xs text-muted-foreground">{lot.current_bid != null ? "Current bid" : "Opening bid"}</div>
-                    <div
-                      key={flash}
-                      className={cn(
-                        "font-heading leading-none tabular animate-in fade-in zoom-in-105 duration-300",
-                        screen ? "text-8xl" : "text-6xl sm:text-7xl",
-                      )}
-                    >
-                      {credits(lot.current_bid ?? lotBase(a, lot))}
-                    </div>
-                    <div className="mt-1 flex items-center gap-2 text-sm">
-                      {leader ? (
-                        <>
-                          <TeamLogo team={teams[leader] ?? null} size="sm" />
-                          <span className="font-semibold">{teamName(leader)}</span>
-                          <span className="text-muted-foreground">leading</span>
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground">No bids yet</span>
-                      )}
-                    </div>
+      <div className={cn("grid gap-6", !screen && "lg:grid-cols-[1fr_340px]", screen && "xl:grid-cols-[1fr_380px]")}>
+        <div className="min-w-0 space-y-3">
+          {/* Stage */}
+          <section
+            className={cn(
+              "dark relative overflow-hidden rounded-xl bg-brand p-6 text-foreground sm:p-10",
+              inCountdown && "border-loss/70",
+            )}
+          >
+            <ReactionLayer floaters={live.floaters} />
+            {lot && player ? (
+              <div className="grid gap-6 md:grid-cols-[auto_1fr]">
+                <PlayerPhoto player={player} big={screen} />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <Badge variant="outline">
+                      {lot.set_name}
+                      {lot.round > 1 ? ` · round ${lot.round}` : ""}
+                    </Badge>
+                    {player.role && <Badge variant="secondary">{player.role}</Badge>}
+                    {player.verified && (
+                      <span className="inline-flex items-center gap-1 text-win">
+                        <BadgeCheck className="size-3.5" /> Verified
+                      </span>
+                    )}
+                    <span className="text-muted-foreground">Base {credits(lotBase(a, lot))}</span>
                   </div>
-                  <Countdown secs={secs} total={total} remainingMs={remainingMs} paused={a.status === "paused"} danger={inCountdown} big={screen} />
+                  <h2 aria-label={player.ign} className={cn("mt-2 font-heading leading-[0.9] font-extrabold uppercase", screen ? "text-7xl sm:text-8xl" : "text-5xl sm:text-7xl")}>
+                    {reduceMotion ? (
+                      player.ign
+                    ) : (
+                      // Scrambles in each time a player is drawn (or re-drawn).
+                      <DecryptedText
+                        key={`${lot.id}:${lot.draw_no}`}
+                        text={player.ign}
+                        animateOn="view"
+                        sequential
+                        speed={70}
+                        characters="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&@"
+                        encryptedClassName="text-hot"
+                      />
+                    )}
+                  </h2>
+                  {player.lastTeam && <p className="mt-1 text-sm text-muted-foreground">Last played for {player.lastTeam}</p>}
+                  {player.bio && <p className="mt-2 max-w-xl text-sm text-muted-foreground">“{player.bio}”</p>}
+                  <StatChips player={player} />
+                  <div className="mt-5 rounded-lg bg-white/5 p-3">
+                    <div className="mb-1.5 font-heading text-xs font-bold tracking-widest text-muted-foreground uppercase">Availability</div>
+                    <AvailabilityBlock availability={player.availability} dates={matchDays.length ? { days: matchDays, answers: player.dates } : undefined} />
+                  </div>
+
+                  <div className="mt-6 flex flex-wrap items-end gap-6">
+                    <div>
+                      <div className="text-xs text-muted-foreground">{lot.current_bid != null ? "Current bid" : "Opening bid"}</div>
+                      <div
+                        key={flash}
+                        className={cn(
+                          "font-heading leading-none tabular animate-in fade-in zoom-in-105 duration-300",
+                          screen ? "text-8xl" : "text-6xl sm:text-7xl",
+                        )}
+                      >
+                        {credits(lot.current_bid ?? lotBase(a, lot))}
+                      </div>
+                      <div className="mt-1 flex items-center gap-2 text-sm">
+                        {leader ? (
+                          <>
+                            <TeamLogo team={teams[leader] ?? null} size="sm" />
+                            <span className="font-semibold">{teamName(leader)}</span>
+                            <span className="text-muted-foreground">leading</span>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">No bids yet</span>
+                        )}
+                      </div>
+                    </div>
+                    <Countdown secs={secs} total={total} remainingMs={remainingMs} paused={a.status === "paused"} danger={inCountdown} big={screen} />
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : showResult ? (
-            <ResultBanner result={result} player={players[result.lot.player_id]} team={result.lot.sold_team_id ? teams[result.lot.sold_team_id] ?? null : null} big={screen} />
-          ) : (
-            <IdleStage status={a.status} poolCount={pool.length} unsoldCount={unsold.length} isAdmin={viewer.isAdmin} />
-          )}
+            ) : showResult ? (
+              <ResultBanner result={result} player={players[result.lot.player_id]} team={result.lot.sold_team_id ? teams[result.lot.sold_team_id] ?? null : null} big={screen} />
+            ) : (
+              <IdleStage
+                status={a.status}
+                poolCount={pool.length}
+                unsoldCount={unsold.length}
+                isAdmin={viewer.isAdmin}
+                countdown={a.status === "setup" && a.starts_at ? <StartCountdown startsAt={a.starts_at} now={now} title={a.name} big={screen} /> : null}
+              />
+            )}
 
-          {inCountdown && (
-            <div className="pointer-events-none absolute inset-0 grid place-items-center bg-background/30">
-              <span key={secs} className="font-heading text-[10rem] leading-none text-loss animate-in zoom-in-125 fade-in duration-300 sm:text-[14rem]">
-                {secs}
-              </span>
+            {inCountdown && (
+              <div className="pointer-events-none absolute inset-0 grid place-items-center bg-background/30">
+                <span key={secs} className="font-heading text-[10rem] leading-none text-loss animate-in zoom-in-125 fade-in duration-300 sm:text-[14rem]">
+                  {secs}
+                </span>
+              </div>
+            )}
+          </section>
+          {!screen && a.status !== "completed" && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="text-xs text-muted-foreground">React live: everyone in the room sees it.</span>
+              <ReactionBar onReact={live.react} canReact={viewer.signedIn} />
             </div>
           )}
-        </section>
+        </div>
 
         {/* Side column */}
         <aside className="space-y-4">
@@ -856,7 +906,26 @@ function ResultBanner({ result, player, team, big }: { result: Result; player: R
   );
 }
 
-function IdleStage({ status, poolCount, unsoldCount, isAdmin }: { status: string; poolCount: number; unsoldCount: number; isAdmin: boolean }) {
+function IdleStage({
+  status,
+  poolCount,
+  unsoldCount,
+  isAdmin,
+  countdown,
+}: {
+  status: string;
+  poolCount: number;
+  unsoldCount: number;
+  isAdmin: boolean;
+  countdown: React.ReactNode;
+}) {
+  if (countdown)
+    return (
+      <>
+        {countdown}
+        {isAdmin && <p className="-mt-6 pb-4 text-center text-xs text-muted-foreground">Draw the first player from the auctioneer panel when you&apos;re ready.</p>}
+      </>
+    );
   const title =
     status === "completed"
       ? "The auction is over"

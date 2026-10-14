@@ -43,12 +43,28 @@ export function GameCard({
       className={cn(
         "group block overflow-hidden rounded-lg border bg-card transition-shadow duration-200 hover:shadow-[0_6px_20px_rgb(12_26_58/0.08)]",
         highlight && "ring-2 ring-hot/70",
+        view.playoffNote === "not_needed" && "opacity-60",
       )}
     >
       <div className="flex items-center gap-2 px-4 pt-3 pb-2">
         <span className={cn("font-heading text-sm font-bold tracking-wide uppercase", live ? "text-hot" : completed ? "text-foreground" : "text-muted-foreground")}>
-          {completed ? "Final" : live ? "● Live" : highlight ? "Up next" : game.scheduled_at ? fmtTime(game.scheduled_at) : "Scheduled"}
+          {completed
+            ? "Final"
+            : live
+              ? "● Live"
+              : view.playoffNote === "not_needed"
+                ? "Not needed"
+                : highlight
+                  ? "Up next"
+                  : game.scheduled_at
+                    ? fmtTime(game.scheduled_at)
+                    : "Scheduled"}
         </span>
+        {view.playoffNote === "if_needed" && (
+          <span className="rounded-sm bg-gold-soft px-1.5 py-px font-heading text-[10px] font-bold tracking-wide text-gold uppercase" title="Played only if the series is 1–1">
+            If needed
+          </span>
+        )}
         <span className="ml-auto truncate text-xs text-muted-foreground">
           {view.label}
           {showDate && game.scheduled_at && ` · ${fmtDate(game.scheduled_at)}`}

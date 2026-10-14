@@ -5,7 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { int, must, optionalText, run, syncPlayoffs, text, UserError, type ActionResult } from "@/lib/admin";
 import { fetchLeagueData } from "@/lib/data";
 import { buildIndex, seasonMaps as poolMaps, seasonTeams as teamsOf } from "@/lib/engine/league";
-import { generateSchedule } from "@/lib/engine/schedule";
+import { generateSchedule, playoffMapOrder } from "@/lib/engine/schedule";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSessionClient } from "@/lib/supabase/server";
 import { fromZonedInput } from "@/lib/time";
@@ -379,7 +379,13 @@ export async function generateOfficialSchedule(seasonId: string, fd: FormData) {
     const teams = teamsOf(idx, seasonId);
     const maps = poolMaps(idx, seasonId);
     // New schedules have no matchdays: organizers place each game on a date in the calendar planner.
-    const fixtures = generateSchedule({ teamIds: teams.map((t) => t.id), mapIds: maps.map((m) => m.id), roundRobins, matchdays: false });
+    const fixtures = generateSchedule({
+      teamIds: teams.map((t) => t.id),
+      mapIds: maps.map((m) => m.id),
+      roundRobins,
+      matchdays: false,
+      playoffMapIds: playoffMapOrder(maps),
+    });
     must(await db.from("seasons").update({ round_robins: roundRobins }).eq("id", seasonId));
     must(await db.rpc("replace_official_schedule", { p_season_id: seasonId, p_fixtures: fixtures }));
     const leagueGames = fixtures.filter((f) => f.stage === "league").reduce((a, f) => a + f.games.length, 0);

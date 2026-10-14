@@ -59,7 +59,7 @@ export default async function ScheduleAdmin({ params }: PageProps<"/admin/season
     fixtureId: v.fixture.id,
     group: v.fixture.stage === "league" ? (rrCount > 1 ? `Round Robin ${v.fixture.round_robin}` : "League") : "Playoffs",
     title: v.fixture.stage === "league" ? `${v.teamA?.name ?? "TBD"} vs ${v.teamB?.name ?? "TBD"}` : STAGE_LABELS[v.fixture.stage],
-    sub: `${v.map?.name ?? "Map TBD"} · G${v.game.game_no}`,
+    sub: `${v.map?.name ?? "Map TBD"} · G${v.game.game_no}${v.fixture.stage !== "league" && v.game.game_no === 3 ? " (if 1–1)" : ""}`,
     teamA: lite(v.teamA),
     teamB: lite(v.teamB),
     at: v.game.scheduled_at ? toZonedInput(v.game.scheduled_at) : null,
@@ -226,6 +226,12 @@ export default async function ScheduleAdmin({ params }: PageProps<"/admin/season
                   <Input type="datetime-local" name="scheduled_at" defaultValue={toZonedInput(v.game.scheduled_at)} className="h-8 w-52 text-xs" />
                   <NativeSelect name="map_id" defaultValue={v.game.map_id ?? ""} className="h-8 w-40 text-xs">
                     <option value="">Map TBD</option>
+                    {v.map && !maps.some((m) => m.id === v.map!.id) && (
+                      // Removed from the pool since: keep it selectable so saving the row doesn't clear it.
+                      <option value={v.map.id}>
+                        {v.map.name} ({v.map.total_rounds}R, not in pool)
+                      </option>
+                    )}
                     {maps.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.name} ({m.total_rounds}R)

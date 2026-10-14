@@ -16,6 +16,25 @@ export interface PlannedFixture {
 }
 
 /**
+ * Default maps for a best-of-3 playoff series: longest map first (e.g. 23, 21, then 19 rounds),
+ * one map per distinct round count, topped up from the pool when there are fewer than three.
+ */
+export function playoffMapOrder(maps: { id: string; total_rounds: number }[]): string[] {
+  if (!maps.length) return [];
+  const byRounds = [...maps].sort((a, b) => b.total_rounds - a.total_rounds);
+  const picked: string[] = [];
+  const seen = new Set<number>();
+  for (const m of byRounds) {
+    if (seen.has(m.total_rounds)) continue;
+    seen.add(m.total_rounds);
+    picked.push(m.id);
+  }
+  for (const m of maps) if (picked.length < 3 && !picked.includes(m.id)) picked.push(m.id);
+  while (picked.length < 3) picked.push(picked[picked.length % maps.length]);
+  return picked.slice(0, 3);
+}
+
+/**
  * Circle-method round robin. Returns one list of pairings per matchday; every pair meets exactly once.
  * With an odd team count a phantom "bye" slot is added, so one team rests each matchday.
  */
@@ -51,6 +70,8 @@ export function generateSchedule(opts: {
   mapIds: string[];
   roundRobins: number;
   matchdays?: boolean;
+  /** Maps for playoff games 1–3 (see playoffMapOrder); defaults to the first pool maps. */
+  playoffMapIds?: string[];
 }): PlannedFixture[] {
   const { teamIds, mapIds, roundRobins, matchdays: withMatchdays = true } = opts;
   if (teamIds.length < 2) throw new Error("Add at least 2 teams to the season first.");
@@ -84,7 +105,8 @@ export function generateSchedule(opts: {
   }
 
   if (teamIds.length >= 4) {
-    const seriesMaps = [mapIds[0], mapIds[1] ?? mapIds[0]];
+    // Best of 3: all three games exist up front; game 3 is only played if the series is 1–1.
+    const seriesMaps = opts.playoffMapIds?.length ? opts.playoffMapIds.slice(0, 3) : [mapIds[0], mapIds[1] ?? mapIds[0], mapIds[2] ?? mapIds[0]];
     for (const stage of PLAYOFF_STAGES) {
       fixtures.push({
         stage,

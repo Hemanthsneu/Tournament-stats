@@ -53,7 +53,20 @@ export type HeroSlide =
       photo: string | null;
       stats: { label: string; value: number; decimals?: number }[];
     }
-  | { kind: "banner"; id: string; eyebrow: string; title: string; text: string; href: string; cta: string; live?: boolean; tone?: "hot" | "gold"; team?: TeamLite };
+  | {
+      kind: "banner";
+      id: string;
+      eyebrow: string;
+      title: string;
+      text: string;
+      href: string;
+      cta: string;
+      live?: boolean;
+      tone?: "hot" | "gold";
+      team?: TeamLite;
+      /** Live countdown to this instant (e.g. the auction start). */
+      countdownTo?: string | null;
+    };
 
 const AUTOPLAY_MS = 7000;
 
@@ -262,6 +275,11 @@ function SlideBody({ slide, visit }: { slide: HeroSlide; visit: number }) {
         </Eyebrow>
         <BlurText key={`b${visit}`} text={slide.title} delay={60} animateBy="words" className="mt-4 font-heading text-5xl leading-[0.95] font-bold uppercase sm:text-7xl" />
         <p className="mt-4 max-w-xl text-base text-white/75">{slide.text}</p>
+        {slide.countdownTo && (
+          <div className="mt-5">
+            <Countdown to={slide.countdownTo} />
+          </div>
+        )}
         <Link href={slide.href} className="mt-6 inline-flex h-11 items-center gap-1.5 rounded-md bg-hot px-5 font-heading text-lg font-bold tracking-wide text-white uppercase transition hover:bg-hot/90 active:scale-[0.98]">
           {slide.cta} <ArrowRight className="size-4" />
         </Link>

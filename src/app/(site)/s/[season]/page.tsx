@@ -152,9 +152,10 @@ export default async function SeasonHome({ params }: PageProps<"/s/[season]">) {
       id: "auction",
       eyebrow: auction.registration_open ? "Registration open" : "Coming soon",
       title: auction.name,
-      text: auction.registration_open ? "Sign in, register for the pool and share when you can play so captains know before they bid." : "Captains will bid live for every player. Set your availability now.",
+      text: `${auction.starts_at ? `Starts ${fmtDateTime(auction.starts_at)}. ` : ""}${auction.registration_open ? "Sign in, register for the pool and share when you can play so captains know before they bid." : "Captains bid live for every player. Watch it here."}`,
       href: auction.registration_open ? "/me" : "/auction",
       cta: auction.registration_open ? "Register now" : "Auction room",
+      countdownTo: auction.starts_at ?? null,
     });
   }
 
@@ -172,7 +173,7 @@ export default async function SeasonHome({ params }: PageProps<"/s/[season]">) {
               icon: "crate",
               eyebrow: auction.registration_open ? "Registration open" : "Coming soon",
               title: auction.name,
-              text: `Captains bid live with a ${auction.purse.toLocaleString("en-IN")} purse. Register and share your availability before the hammer falls.`,
+              text: `${auction.starts_at ? `Starts ${fmtDateTime(auction.starts_at)}. ` : ""}Captains bid live with a ${auction.purse.toLocaleString("en-IN")} purse. Register, share your availability, then watch it live.`,
               href: "/auction",
               cta: "Auction room",
             },

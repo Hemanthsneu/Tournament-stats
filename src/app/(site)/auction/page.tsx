@@ -74,7 +74,7 @@ export default async function AuctionPage({ searchParams }: PageProps<"/auction"
         players={players}
         matchDays={matchDays}
         teams={teams}
-        viewer={{ isAdmin: !!viewer?.isAdmin, captainTeamId, signedIn: !!viewer }}
+        viewer={{ isAdmin: !!viewer?.isAdmin, captainTeamId, signedIn: !!viewer, playerId: viewer?.playerId ?? null, userId: viewer?.userId ?? null }}
         screen={sp.screen === "1"}
       />
       {sp.screen !== "1" && (

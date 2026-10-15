@@ -8,12 +8,14 @@ import {
   leagueStandings,
   planPlayoffs,
   playoffSeries,
+  seasonPodium,
   standingsMovement,
   teamFinish,
   upNext,
 } from "./league";
 import { playerCareer, playerLeaderboard, rankBy, suggestPotm } from "./players";
 import { buildSampleData } from "../sample-data";
+import { PLAYOFF_FORMATS, type PlayoffFormat } from "../playoff-formats";
 import type { Fixture, Game, LeagueData, PlayerGameStat, Season, Team } from "../types";
 
 const season: Season = {
@@ -392,5 +394,79 @@ describe("playoff maps", () => {
     const fx = generateSchedule({ teamIds: ["A", "B", "C", "D"], mapIds: ["cr21", "rr19a"], roundRobins: 1, playoffMapIds: playoffMapOrder(pool) });
     const q1 = fx.find((f) => f.stage === "qualifier_1")!;
     expect(q1.games.map((g) => `${g.game_no}:${g.map_id}`)).toEqual(["1:cr23", "2:cr21", "3:rr19a"]);
+  });
+});
+
+describe("playoff formats", () => {
+  // A > B > C > D by points, league finished, then the format's playoff series (games 1–3 each).
+  function finished(format: PlayoffFormat) {
+    const { data, game } = league(["A", "B", "C", "D"]);
+    data.seasons[0] = { ...data.seasons[0], playoff_format: format };
+    const results: [string, string][] = [["A", "B"], ["A", "C"], ["A", "D"], ["B", "C"], ["B", "D"], ["C", "D"]];
+    for (const [w, l] of results) game(w, l, 12, 9);
+    const fx = generateSchedule({ teamIds: ["A", "B", "C", "D"], mapIds: ["m21"], roundRobins: 1, playoffStages: PLAYOFF_FORMATS[format].stages });
+    fx.filter((f) => f.stage !== "league").forEach((f, i) => {
+      data.fixtures.push({ id: f.stage, season_id: "s1", type: "official", stage: f.stage, round_robin: null, matchday: null, sort_order: 100 + i, team_a_id: null, team_b_id: null });
+      for (const g of f.games)
+        data.games.push({ id: `${f.stage}-${g.game_no}`, fixture_id: f.stage, game_no: g.game_no, map_id: "m21", scheduled_at: null, squad_size: null, team_a_rounds: null, team_b_rounds: null, status: "scheduled", potm_player_id: null });
+    });
+    const apply = () => {
+      for (const ft of planPlayoffs(buildIndex(data), "s1").fixtureTeams) Object.assign(data.fixtures.find((f) => f.id === ft.fixture_id)!, ft);
+    };
+    const win = (stage: string, aWins: boolean) => {
+      for (const no of [1, 2]) Object.assign(data.games.find((g) => g.id === `${stage}-${no}`)!, { team_a_rounds: aWins ? 12 : 9, team_b_rounds: aWins ? 9 : 12, status: "completed" });
+      apply();
+    };
+    apply();
+    const teams = (id: string) => {
+      const f = data.fixtures.find((x) => x.id === id)!;
+      return [f.team_a_id, f.team_b_id];
+    };
+    return { data, apply, win, teams };
+  }
+
+  it("top 3: 1st waits in the Final, 2nd v 3rd in the Eliminator", () => {
+    const t = finished("top3");
+    expect(t.data.fixtures.filter((f) => f.stage !== "league").map((f) => f.stage)).toEqual(["eliminator", "final"]);
+    expect(t.teams("eliminator")).toEqual(["B", "C"]);
+    expect(t.teams("final")).toEqual(["A", null]);
+    t.win("eliminator", false); // C beats B
+    expect(t.teams("final")).toEqual(["A", "C"]);
+    t.win("final", true);
+    const idx = buildIndex(t.data);
+    expect(seasonPodium(idx, "s1").champion?.id).toBe("A");
+    expect(teamFinish(idx, "s1", "C")).toBe("Runner-up");
+    expect(teamFinish(idx, "s1", "B")).toBe("3rd");
+    expect(teamFinish(idx, "s1", "D")).toBe("4th");
+    expect(leagueStandings(idx, idx.data.seasons[0]).filter((r) => r.mark === "Q").map((r) => r.team.id)).toEqual(["A", "B", "C"]);
+  });
+
+  it("semi-finals: 1st v 4th and 2nd v 3rd, winners in the Final", () => {
+    const t = finished("semis4");
+    expect(t.teams("semi_final_1")).toEqual(["A", "D"]);
+    expect(t.teams("semi_final_2")).toEqual(["B", "C"]);
+    t.win("semi_final_1", false); // D upsets A
+    t.win("semi_final_2", true);
+    expect(t.teams("final")).toEqual(["D", "B"]);
+    t.win("final", true);
+    const idx = buildIndex(t.data);
+    expect(seasonPodium(idx, "s1").champion?.id).toBe("D");
+    expect(teamFinish(idx, "s1", "A")).toBe("Semi-finalist");
+  });
+
+  it("top 2: a single Final between 1st and 2nd", () => {
+    const t = finished("final2");
+    expect(t.teams("final")).toEqual(["A", "B"]);
+    t.win("final", false);
+    expect(seasonPodium(buildIndex(t.data), "s1")).toMatchObject({ champion: { id: "B" }, runnerUp: { id: "A" } });
+  });
+
+  it("no playoffs: the league winner is champion", () => {
+    const t = finished("none");
+    expect(t.data.fixtures.some((f) => f.stage !== "league")).toBe(false);
+    const idx = buildIndex(t.data);
+    expect(seasonPodium(idx, "s1").champion?.id).toBe("A");
+    expect(teamFinish(idx, "s1", "A")).toBe("Champion");
+    expect(teamFinish(idx, "s1", "B")).toBe("Runner-up");
   });
 });

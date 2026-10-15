@@ -2,8 +2,8 @@
 
 export type SeasonStatus = "draft" | "active" | "completed";
 export type FixtureType = "official" | "practice";
-export type Stage = "league" | "qualifier_1" | "eliminator" | "qualifier_2" | "final" | "practice";
-export type PlayoffStage = "qualifier_1" | "eliminator" | "qualifier_2" | "final";
+export type Stage = "league" | "qualifier_1" | "semi_final_1" | "semi_final_2" | "eliminator" | "qualifier_2" | "final" | "practice";
+export type PlayoffStage = "qualifier_1" | "semi_final_1" | "semi_final_2" | "eliminator" | "qualifier_2" | "final";
 export type GameStatus = "scheduled" | "live" | "completed";
 export type TiebreakKey = "nrr" | "nkr" | "h2h" | "kills" | "round_win_pct" | "revives";
 
@@ -18,6 +18,8 @@ export interface Season {
   tiebreak_order: TiebreakKey[];
   mvp_kill_weight: number;
   mvp_revive_weight: number;
+  /** See lib/playoff-formats.ts; missing = "ipl4" (Season 1's format). */
+  playoff_format?: string | null;
 }
 
 export interface Team {
@@ -119,11 +121,13 @@ export interface LeagueData {
   stats: PlayerGameStat[];
 }
 
-export const PLAYOFF_STAGES: PlayoffStage[] = ["qualifier_1", "eliminator", "qualifier_2", "final"];
+export const PLAYOFF_STAGES: PlayoffStage[] = ["qualifier_1", "semi_final_1", "semi_final_2", "eliminator", "qualifier_2", "final"];
 
 export const STAGE_LABELS: Record<Stage, string> = {
   league: "League",
   qualifier_1: "Qualifier 1",
+  semi_final_1: "Semi-final 1",
+  semi_final_2: "Semi-final 2",
   eliminator: "Eliminator",
   qualifier_2: "Qualifier 2",
   final: "Final",

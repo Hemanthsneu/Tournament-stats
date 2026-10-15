@@ -4,8 +4,9 @@ import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { int, must, optionalText, run, syncPlayoffs, text, UserError, type ActionResult } from "@/lib/admin";
 import { fetchLeagueData } from "@/lib/data";
-import { buildIndex, seasonMaps as poolMaps, seasonTeams as teamsOf } from "@/lib/engine/league";
+import { buildIndex, isCalendarSeason, seasonMaps as poolMaps, seasonTeams as teamsOf } from "@/lib/engine/league";
 import { generateSchedule, playoffMapOrder } from "@/lib/engine/schedule";
+import { PLAYOFF_FORMATS, playoffFormat, playoffsActive, type PlayoffFormat } from "@/lib/playoff-formats";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createSessionClient } from "@/lib/supabase/server";
 import { fromZonedInput } from "@/lib/time";
@@ -378,6 +379,10 @@ export async function generateOfficialSchedule(seasonId: string, fd: FormData) {
     const idx = buildIndex(await fetchLeagueData());
     const teams = teamsOf(idx, seasonId);
     const maps = poolMaps(idx, seasonId);
+    const chosen = optionalText(fd, "playoff_format");
+    const spec = chosen ? PLAYOFF_FORMATS[chosen as PlayoffFormat] : playoffFormat(idx.seasonById.get(seasonId));
+    if (!spec) throw new UserError("Pick a playoff format.");
+    if (spec.qualify > teams.length) throw new UserError(`${spec.label} needs at least ${spec.qualify} teams.`);
     // New schedules have no matchdays: organizers place each game on a date in the calendar planner.
     const fixtures = generateSchedule({
       teamIds: teams.map((t) => t.id),
@@ -385,11 +390,12 @@ export async function generateOfficialSchedule(seasonId: string, fd: FormData) {
       roundRobins,
       matchdays: false,
       playoffMapIds: playoffMapOrder(maps),
+      playoffStages: playoffsActive(spec, teams.length) ? spec.stages : [],
     });
-    must(await db.from("seasons").update({ round_robins: roundRobins }).eq("id", seasonId));
+    must(await db.from("seasons").update({ round_robins: roundRobins, playoff_format: spec.id }).eq("id", seasonId));
     must(await db.rpc("replace_official_schedule", { p_season_id: seasonId, p_fixtures: fixtures }));
     const leagueGames = fixtures.filter((f) => f.stage === "league").reduce((a, f) => a + f.games.length, 0);
-    return `Fixtures created: ${leagueGames} league games${teams.length >= 4 ? " + playoffs" : ""}. Now place them on the calendar.`;
+    return `Fixtures created: ${leagueGames} league games, playoffs: ${spec.label}. Now place them on the calendar.`;
   });
 }
 
@@ -642,5 +648,40 @@ export async function saveGamePlan(seasonId: string, fd: FormData) {
       );
     }
     return `Saved ${updates.length} game${updates.length === 1 ? "" : "s"}${skipped ? ` (${skipped} with results left as they were)` : ""}.`;
+  });
+}
+
+/**
+ * Changes a season's playoff format. Before fixtures exist it is just saved (used when they're
+ * generated); afterwards only the playoff series are rebuilt, so league games and their dates stay.
+ * Seasons with a matchday schedule (Season 1) are left alone.
+ */
+export async function setPlayoffFormat(seasonId: string, fd: FormData) {
+  return run(async (db) => {
+    const spec = PLAYOFF_FORMATS[String(fd.get("playoff_format") ?? "") as PlayoffFormat];
+    if (!spec) throw new UserError("Pick a playoff format.");
+    const idx = buildIndex(await fetchLeagueData());
+    const teams = teamsOf(idx, seasonId);
+    if (spec.qualify > teams.length) throw new UserError(`${spec.label} needs at least ${spec.qualify} teams.`);
+    const official = idx.data.fixtures.filter((f) => f.season_id === seasonId && f.type === "official");
+    const league = official.filter((f) => f.stage === "league");
+    if (league.length && !isCalendarSeason(idx, seasonId)) throw new UserError("This season's schedule uses matchdays, so its playoff format stays as it is.");
+    const playoffIds = new Set(official.filter((f) => f.stage !== "league").map((f) => f.id));
+    if (idx.views.some((v) => playoffIds.has(v.fixture.id) && v.completed)) throw new UserError("Playoff results have been entered, so the format can't change now.");
+
+    must(await db.from("seasons").update({ playoff_format: spec.id }).eq("id", seasonId));
+    if (!league.length) return `Playoff format: ${spec.label}. It's used when you generate the fixtures.`;
+
+    if (playoffIds.size) must(await db.from("fixtures").delete().in("id", [...playoffIds]));
+    if (playoffsActive(spec, teams.length)) {
+      const maps = playoffMapOrder(poolMaps(idx, seasonId));
+      let sortOrder = Math.max(...league.map((f) => f.sort_order)) + 1;
+      for (const stage of spec.stages) {
+        const fx = must(await db.from("fixtures").insert({ season_id: seasonId, type: "official", stage, sort_order: sortOrder++ }).select("id").single());
+        must(await db.from("games").insert([1, 2, 3].map((no) => ({ fixture_id: fx.id, game_no: no, map_id: maps[no - 1] ?? null }))));
+      }
+      await syncPlayoffs(db, seasonId);
+    }
+    return `Playoffs updated: ${spec.label}. League games and their dates are unchanged.`;
   });
 }

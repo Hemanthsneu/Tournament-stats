@@ -15,8 +15,8 @@ import {
   filterGames,
   isLeagueComplete,
   leagueStandings,
-  playoffSeries,
   seasonMaps,
+  seasonPodium,
   seasonTeams,
   standingsMovement,
   upNext,
@@ -24,6 +24,7 @@ import {
 } from "@/lib/engine/league";
 import { playerLeaderboard, rankBy } from "@/lib/engine/players";
 import { signed } from "@/lib/format";
+import { playoffFormat } from "@/lib/playoff-formats";
 import { teamColor } from "@/lib/team-colors";
 import { fmtDateTime } from "@/lib/time";
 import type { Team } from "@/lib/types";
@@ -64,7 +65,7 @@ export default async function SeasonHome({ params }: PageProps<"/s/[season]">) {
   const next = upNext(official, 3);
   const latest = [...played].sort((a, b) => (b.game.scheduled_at ?? "").localeCompare(a.game.scheduled_at ?? "")).slice(0, 6);
   const table = leagueStandings(idx, season);
-  const champion = idx.teamById.get(playoffSeries(idx, season.id).get("final")?.winnerId ?? "") ?? null;
+  const champion = seasonPodium(idx, season.id).champion;
   const stage = champion ? "Champions crowned" : isLeagueComplete(idx, season.id) ? "Playoffs" : played.length ? "League stage" : "Coming soon";
   const board = playerLeaderboard(idx, official);
   const teams = seasonTeams(idx, season.id);
@@ -91,7 +92,7 @@ export default async function SeasonHome({ params }: PageProps<"/s/[season]">) {
       eyebrow: stage,
       live: stage === "League stage",
       title: season.name,
-      meta: `${teams.length} teams · ${season.round_robins} round robin${season.round_robins > 1 ? "s" : ""} · ${maps.map((m) => m.name).join(", ") || "maps TBA"} · top 4 to IPL-style playoffs`,
+      meta: `${teams.length} teams · ${season.round_robins} round robin${season.round_robins > 1 ? "s" : ""} · ${maps.map((m) => m.name).join(", ") || "maps TBA"} · ${playoffFormat(season).summary}`,
       stats: [
         { label: "Games played", value: played.length },
         { label: "Still to play", value: official.length - played.length },
@@ -232,7 +233,7 @@ export default async function SeasonHome({ params }: PageProps<"/s/[season]">) {
         <Reveal delay={0.1}>
           <aside>
             <SectionTitle action={<MoreLink href={`${base}/table`}>Full table</MoreLink>}>Standings</SectionTitle>
-            {table.length ? <StandingsTable rows={table} compact playoffLines movement={standingsMovement(idx, season)} /> : <EmptyState title="No teams yet" />}
+            {table.length ? <StandingsTable rows={table} compact playoffLines format={playoffFormat(season)} movement={standingsMovement(idx, season)} /> : <EmptyState title="No teams yet" />}
           </aside>
         </Reveal>
       </div>

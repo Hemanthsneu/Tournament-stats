@@ -4,7 +4,8 @@ import { Bracket } from "@/components/bracket";
 import { EmptyState, PageHeader } from "@/components/page-header";
 import { TeamLogo } from "@/components/team";
 import { loadSeason } from "@/lib/data";
-import { isLeagueComplete, leagueStandings, playoffSeries } from "@/lib/engine/league";
+import { isLeagueComplete, leagueStandings, playoffSeries, seasonPodium, seasonTeams } from "@/lib/engine/league";
+import { playoffFormat, playoffsActive } from "@/lib/playoff-formats";
 
 export async function generateMetadata({ params }: PageProps<"/s/[season]/playoffs">) {
   return { title: `Season ${(await params).season} playoffs` };
@@ -16,16 +17,49 @@ export default async function PlayoffsPage({ params }: PageProps<"/s/[season]/pl
   const series = playoffSeries(idx, season.id);
   const complete = isLeagueComplete(idx, season.id);
   const table = leagueStandings(idx, season);
-  const champion = idx.teamById.get(series.get("final")?.winnerId ?? "");
+  const format = playoffFormat(season);
+  const active = playoffsActive(format, seasonTeams(idx, season.id).length);
+  const champion = seasonPodium(idx, season.id).champion;
+  const seed = (i: number) => <b className="text-foreground">{table[i]?.team.tag}</b>;
+  const ifToday =
+    format.id === "semis4" ? (
+      <>
+        {seed(0)} vs {seed(3)} and {seed(1)} vs {seed(2)} in the semi-finals.
+      </>
+    ) : format.id === "top3" ? (
+      <>
+        {seed(0)} straight to the Final, {seed(1)} vs {seed(2)} in the Eliminator.
+      </>
+    ) : format.id === "final2" ? (
+      <>
+        {seed(0)} vs {seed(1)} in the Final.
+      </>
+    ) : (
+      <>
+        {seed(0)} vs {seed(1)} in Qualifier 1, {seed(2)} vs {seed(3)} in the Eliminator.
+      </>
+    );
 
   return (
     <div>
       <PageHeader
         title="Playoffs"
-        subtitle={`${season.name} · IPL format · every series is best of 3 (game 3 is played only if it's 1–1)`}
+        subtitle={
+          active
+            ? `${season.name} · ${format.label} · every series is best of 3 (game 3 is played only if it's 1–1)`
+            : `${season.name} · ${format.id === "none" ? "No playoffs: the league winner is champion" : format.label}`
+        }
       />
-      {series.size === 0 ? (
-        <EmptyState title="Playoffs not scheduled">Playoffs need at least 4 teams and a published schedule.</EmptyState>
+      {!active || series.size === 0 ? (
+        champion ? (
+          <EmptyState title={`${champion.name} are champions`}>Top of the league table. This season has no playoffs.</EmptyState>
+        ) : (
+          <EmptyState title={format.id === "none" ? "No playoffs this season" : "Playoffs not scheduled"}>
+            {format.id === "none"
+              ? "The team on top of the league table when the last game is played is champion."
+              : `This format needs at least ${format.qualify} teams and a published schedule.`}
+          </EmptyState>
+        )
       ) : (
         <>
           {champion && (
@@ -43,13 +77,10 @@ export default async function PlayoffsPage({ params }: PageProps<"/s/[season]/pl
           )}
           {!complete && table.some((r) => r.played > 0) && (
             <p className="mb-4 rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
-              Teams are filled in automatically when the last league game is published. If the league ended today:{" "}
-              <b className="text-foreground">{table[0]?.team.tag}</b> vs <b className="text-foreground">{table[1]?.team.tag}</b> in
-              Qualifier 1, <b className="text-foreground">{table[2]?.team.tag}</b> vs{" "}
-              <b className="text-foreground">{table[3]?.team.tag}</b> in the Eliminator.
+              Teams are filled in automatically when the last league game is published. If the league ended today: {ifToday}
             </p>
           )}
-          <Bracket series={series} />
+          <Bracket series={series} format={format} />
         </>
       )}
     </div>

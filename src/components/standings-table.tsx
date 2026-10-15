@@ -17,6 +17,7 @@ import { TeamLink } from "@/components/team";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { StandingRow } from "@/lib/engine/league";
 import { pct, signed } from "@/lib/format";
+import { PLAYOFF_FORMATS, type PlayoffFormatSpec } from "@/lib/playoff-formats";
 import { cn } from "@/lib/utils";
 
 const COLUMNS: { key: string; label: string; hint: string; icon: React.ComponentType<{ className?: string }>; compact?: boolean }[] = [
@@ -88,12 +89,15 @@ export function StandingsTable({
   rows,
   compact = false,
   playoffLines = false,
+  format = PLAYOFF_FORMATS.ipl4,
   movement,
 }: {
   rows: StandingRow[];
   compact?: boolean;
-  /** Mark top 2 / top 4 and show Q/E (official league table). */
+  /** Mark the playoff places and show Q/E (official league table). */
   playoffLines?: boolean;
+  /** The season's playoff format: how many qualify and who gets a head start. */
+  format?: PlayoffFormatSpec;
   /** Places gained (+) / lost (−) since the previous matchday. */
   movement?: Map<string, number>;
 }) {
@@ -120,14 +124,15 @@ export function StandingsTable({
         </thead>
         <tbody>
           {rows.map((row) => {
-            const top2 = playoffLines && row.position <= 2;
-            const top4 = playoffLines && row.position <= 4;
+            const lines = playoffLines && format.qualify > 0;
+            const top2 = lines && !!format.edge && row.position <= format.edge.places;
+            const top4 = lines && row.position <= format.qualify;
             return (
               <tr
                 key={row.team.id}
                 className={cn(
                   "border-b transition-colors last:border-0 hover:bg-accent/50",
-                  playoffLines && row.position === 4 && rows.length > 4 && "border-b-2 border-b-hot",
+                  lines && row.position === format.qualify && rows.length > format.qualify && "border-b-2 border-b-hot",
                 )}
               >
                 <td className="sticky left-0 z-10 bg-card py-3 pl-4">
@@ -188,17 +193,21 @@ function MarkBadge({ mark }: { mark: "Q" | "E" }) {
   );
 }
 
-export function StandingsLegend({ playoffLines }: { playoffLines?: boolean }) {
+export function StandingsLegend({ playoffLines, format = PLAYOFF_FORMATS.ipl4 }: { playoffLines?: boolean; format?: PlayoffFormatSpec }) {
   return (
     <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
-      {playoffLines && (
+      {playoffLines && format.qualify > 0 && (
         <>
-          <span className="inline-flex items-center gap-2">
-            <span className="size-2.5 rounded-sm bg-brand" /> Top 2 · Qualifier 1
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <span className="size-2.5 rounded-sm bg-info-soft ring-1 ring-info/30" /> 3rd–4th · Eliminator
-          </span>
+          {format.edge && (
+            <span className="inline-flex items-center gap-2">
+              <span className="size-2.5 rounded-sm bg-brand" /> {format.edge.label}
+            </span>
+          )}
+          {format.restLabel && (
+            <span className="inline-flex items-center gap-2">
+              <span className="size-2.5 rounded-sm bg-info-soft ring-1 ring-info/30" /> {format.restLabel}
+            </span>
+          )}
           <span className="inline-flex items-center gap-2">
             <span className="h-0.5 w-4 bg-hot" /> Playoff line
           </span>

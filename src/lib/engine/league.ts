@@ -16,6 +16,7 @@ import {
 } from "../types";
 import { dateKey } from "../time";
 import { playoffMapOrder } from "./schedule";
+import { playoffFormat, playoffsActive } from "../playoff-formats";
 
 // ---------------------------------------------------------------------------
 // Index: lookup maps + a denormalised view of every game
@@ -58,10 +59,12 @@ export interface LeagueIndex {
 const STAGE_ORDER: Record<Stage, number> = {
   league: 0,
   qualifier_1: 1,
-  eliminator: 2,
-  qualifier_2: 3,
-  final: 4,
-  practice: 5,
+  semi_final_1: 2,
+  semi_final_2: 3,
+  eliminator: 4,
+  qualifier_2: 5,
+  final: 6,
+  practice: 7,
 };
 
 function byId<T extends { id: string }>(rows: T[]): Map<string, T> {
@@ -450,7 +453,8 @@ function applyQualificationMarks(rows: StandingRow[], season: Season, spots: num
 export function leagueStandings(idx: LeagueIndex, season: Season): StandingRow[] {
   const games = filterGames(idx, { seasonId: season.id, type: "official", stages: ["league"] });
   const teams = seasonTeams(idx, season.id);
-  return computeStandings(season, teams, games, { playoffSpots: teams.length >= 4 ? 4 : 0 });
+  const spec = playoffFormat(season);
+  return computeStandings(season, teams, games, { playoffSpots: playoffsActive(spec, teams.length) ? spec.qualify : 0 });
 }
 
 export function practiceStandings(idx: LeagueIndex, season: Season): StandingRow[] {
@@ -562,11 +566,44 @@ export function planPlayoffs(idx: LeagueIndex, seasonId: string): PlayoffPlan {
     return locked ? seriesFromGames(a, b, s.games) : { winnerId: null, loserId: null };
   };
 
-  const q1 = settle("qualifier_1", [seeds[0], seeds[1]]);
-  const el = settle("eliminator", [seeds[2], seeds[3]]);
-  const q2 = settle("qualifier_2", [q1.loserId, el.winnerId]);
-  settle("final", [q1.winnerId, q2.winnerId]);
+  const format = playoffFormat(season).id;
+  if (format === "semis4") {
+    const sf1 = settle("semi_final_1", [seeds[0], seeds[3]]);
+    const sf2 = settle("semi_final_2", [seeds[1], seeds[2]]);
+    settle("final", [sf1.winnerId, sf2.winnerId]);
+  } else if (format === "top3") {
+    // 1st waits in the Final for the winner of 2nd v 3rd.
+    const el = settle("eliminator", [seeds[1], seeds[2]]);
+    settle("final", [seeds[0], el.winnerId]);
+  } else if (format === "final2") {
+    settle("final", [seeds[0], seeds[1]]);
+  } else if (format === "ipl4") {
+    const q1 = settle("qualifier_1", [seeds[0], seeds[1]]);
+    const el = settle("eliminator", [seeds[2], seeds[3]]);
+    const q2 = settle("qualifier_2", [q1.loserId, el.winnerId]);
+    settle("final", [q1.winnerId, q2.winnerId]);
+  }
   return plan;
+}
+
+/**
+ * Champion and runner-up: the Final's winner and loser, or with no playoffs (format "none", or
+ * too few teams for the format) the top two of the finished league table.
+ */
+export function seasonPodium(idx: LeagueIndex, seasonId: string): { champion: Team | null; runnerUp: Team | null } {
+  const season = idx.seasonById.get(seasonId);
+  if (!season) return { champion: null, runnerUp: null };
+  const spec = playoffFormat(season);
+  if (!playoffsActive(spec, seasonTeams(idx, seasonId).length)) {
+    if (!isLeagueComplete(idx, seasonId)) return { champion: null, runnerUp: null };
+    const table = leagueStandings(idx, season);
+    return { champion: table[0]?.team ?? null, runnerUp: table[1]?.team ?? null };
+  }
+  const final = playoffSeries(idx, seasonId).get("final");
+  return {
+    champion: final?.winnerId ? idx.teamById.get(final.winnerId) ?? null : null,
+    runnerUp: final?.loserId ? idx.teamById.get(final.loserId) ?? null : null,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -584,10 +621,12 @@ export function teamFinish(idx: LeagueIndex, seasonId: string, teamId: string): 
   if (!season) return null;
   const series = playoffSeries(idx, seasonId);
   const final = series.get("final");
-  if (final?.winnerId === teamId) return "Champion";
-  if (final?.loserId === teamId) return "Runner-up";
-  if (series.get("qualifier_2")?.loserId === teamId) return "3rd";
-  if (series.get("eliminator")?.loserId === teamId) return "4th";
+  const podium = seasonPodium(idx, seasonId);
+  if (podium.champion?.id === teamId) return "Champion";
+  if (podium.runnerUp?.id === teamId) return "Runner-up";
+  for (const [stage, finish] of Object.entries(playoffFormat(season).loserFinish)) {
+    if (series.get(stage as PlayoffStage)?.loserId === teamId) return finish;
+  }
 
   const inPlayoffs = [...series.values()].some(
     (s) => s.fixture.team_a_id === teamId || s.fixture.team_b_id === teamId,

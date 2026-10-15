@@ -1,23 +1,10 @@
 import Link from "next/link";
 import { TeamLogo } from "@/components/team";
 import type { SeriesView } from "@/lib/engine/league";
+import { PLAYOFF_FORMATS, type PlayoffFormatSpec } from "@/lib/playoff-formats";
 import { STAGE_LABELS, type PlayoffStage, type Team } from "@/lib/types";
 import { fmtDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
-
-const NOTES: Record<PlayoffStage, string> = {
-  qualifier_1: "1st v 2nd. Winner to the Final, loser to Qualifier 2",
-  eliminator: "3rd v 4th. Winner to Qualifier 2, loser out",
-  qualifier_2: "Loser Q1 v winner Eliminator. Winner to the Final",
-  final: "Winner Q1 v winner Q2",
-};
-
-const PLACEHOLDERS: Record<PlayoffStage, [string, string]> = {
-  qualifier_1: ["1st place", "2nd place"],
-  eliminator: ["3rd place", "4th place"],
-  qualifier_2: ["Loser of Q1", "Winner of Eliminator"],
-  final: ["Winner of Q1", "Winner of Q2"],
-};
 
 function SeriesRow({ team, wins, won, placeholder }: { team: Team | null; wins: number; won: boolean; placeholder: string }) {
   return (
@@ -35,8 +22,8 @@ function SeriesRow({ team, wins, won, placeholder }: { team: Team | null; wins: 
   );
 }
 
-export function SeriesCard({ series, stage }: { series: SeriesView | undefined; stage: PlayoffStage }) {
-  const [phA, phB] = PLACEHOLDERS[stage];
+export function SeriesCard({ series, stage, format = PLAYOFF_FORMATS.ipl4 }: { series: SeriesView | undefined; stage: PlayoffStage; format?: PlayoffFormatSpec }) {
+  const [phA, phB] = format.placeholders[stage] ?? ["TBD", "TBD"];
   const firstDate = series?.games.find((g) => g.game.scheduled_at)?.game.scheduled_at;
   const winner = series?.winnerId;
   return (
@@ -76,20 +63,23 @@ export function SeriesCard({ series, stage }: { series: SeriesView | undefined; 
           ))}
         </ul>
       )}
-      <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">{NOTES[stage]}</p>
+      <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">{format.notes[stage]}</p>
     </div>
   );
 }
 
-export function Bracket({ series }: { series: Map<PlayoffStage, SeriesView> }) {
+/** Columns follow the season's playoff format (e.g. IPL: Q1 + Eliminator → Q2 → Final). */
+export function Bracket({ series, format = PLAYOFF_FORMATS.ipl4 }: { series: Map<PlayoffStage, SeriesView>; format?: PlayoffFormatSpec }) {
+  const cols = format.rounds.length;
   return (
-    <div className="grid gap-4 lg:grid-cols-3 lg:items-center">
-      <div className="space-y-4">
-        <SeriesCard stage="qualifier_1" series={series.get("qualifier_1")} />
-        <SeriesCard stage="eliminator" series={series.get("eliminator")} />
-      </div>
-      <SeriesCard stage="qualifier_2" series={series.get("qualifier_2")} />
-      <SeriesCard stage="final" series={series.get("final")} />
+    <div className={cn("grid gap-4 lg:items-center", cols >= 3 ? "lg:grid-cols-3" : cols === 2 ? "lg:grid-cols-2" : "max-w-md")}>
+      {format.rounds.map((round, i) => (
+        <div key={i} className="space-y-4">
+          {round.map((stage) => (
+            <SeriesCard key={stage} stage={stage} series={series.get(stage)} format={format} />
+          ))}
+        </div>
+      ))}
     </div>
   );
 }

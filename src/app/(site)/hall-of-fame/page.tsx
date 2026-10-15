@@ -6,7 +6,7 @@ import { credits } from "@/lib/auction";
 import { loadCommunity } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
 import { onColor, teamColor } from "@/lib/team-colors";
-import { filterGames, leagueStandings, playoffSeries, sortedSeasons } from "@/lib/engine/league";
+import { filterGames, leagueStandings, seasonPodium, sortedSeasons } from "@/lib/engine/league";
 import { playerLeaderboard, rankBy, type AwardKey } from "@/lib/engine/players";
 
 export const metadata = { title: "Hall of Fame" };
@@ -29,7 +29,7 @@ export default async function HallOfFame() {
   const titlesByPlayer = new Map<string, number>();
   const titlesByTeam = new Map<string, number>();
   for (const s of seasons) {
-    const champ = playoffSeries(idx, s.id).get("final")?.winnerId;
+    const champ = seasonPodium(idx, s.id).champion?.id;
     if (!champ) continue;
     titlesByTeam.set(champ, (titlesByTeam.get(champ) ?? 0) + 1);
     for (const r of idx.data.rosters.filter((x) => x.season_id === s.id && x.team_id === champ)) {
@@ -60,9 +60,7 @@ export default async function HallOfFame() {
       <PageHeader title="Hall of Fame" subtitle="Champions, award winners and records from every season" />
 
       {seasons.map((s) => {
-        const final = playoffSeries(idx, s.id).get("final");
-        const champ = final?.winnerId ? idx.teamById.get(final.winnerId) ?? null : null;
-        const runner = final?.loserId ? idx.teamById.get(final.loserId) ?? null : null;
+        const { champion: champ, runnerUp: runner } = seasonPodium(idx, s.id);
         const board = playerLeaderboard(idx, filterGames(idx, { seasonId: s.id, type: "official" }));
         const leader = leagueStandings(idx, s)[0];
         const auction = community.auctions.find((a) => a.season_id === s.id && !a.is_practice);

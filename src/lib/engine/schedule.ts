@@ -1,4 +1,4 @@
-import { PLAYOFF_STAGES, type Stage } from "../types";
+import { PLAYOFF_STAGES, type PlayoffStage, type Stage } from "../types";
 
 export interface PlannedGame {
   game_no: number;
@@ -72,6 +72,8 @@ export function generateSchedule(opts: {
   matchdays?: boolean;
   /** Maps for playoff games 1–3 (see playoffMapOrder); defaults to the first pool maps. */
   playoffMapIds?: string[];
+  /** Playoff series to create (from the season's playoff format); defaults to IPL style with 4+ teams. */
+  playoffStages?: PlayoffStage[];
 }): PlannedFixture[] {
   const { teamIds, mapIds, roundRobins, matchdays: withMatchdays = true } = opts;
   if (teamIds.length < 2) throw new Error("Add at least 2 teams to the season first.");
@@ -104,10 +106,11 @@ export function generateSchedule(opts: {
     });
   }
 
-  if (teamIds.length >= 4) {
+  const playoffStages = opts.playoffStages ?? (teamIds.length >= 4 ? PLAYOFF_STAGES.filter((s) => !s.startsWith("semi")) : []);
+  if (playoffStages.length) {
     // Best of 3: all three games exist up front; game 3 is only played if the series is 1–1.
     const seriesMaps = opts.playoffMapIds?.length ? opts.playoffMapIds.slice(0, 3) : [mapIds[0], mapIds[1] ?? mapIds[0], mapIds[2] ?? mapIds[0]];
-    for (const stage of PLAYOFF_STAGES) {
+    for (const stage of playoffStages) {
       fixtures.push({
         stage,
         round_robin: null,

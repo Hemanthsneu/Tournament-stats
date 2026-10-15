@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ActionForm } from "@/components/admin/action-form";
 import { FixturePlanner, type PlannerGame, type PlannerTeam } from "@/components/admin/fixture-planner";
+import { PlayoffFormatChoice } from "@/components/admin/playoff-format-choice";
 import { Field, NativeSelect, Panel, TextField } from "@/components/admin/fields";
 import { TeamLogo } from "@/components/team";
 import { Badge } from "@/components/ui/badge";
@@ -11,11 +12,12 @@ import { Label } from "@/components/ui/label";
 import { dateAnswers, loadCommunity, matchDaysFor } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
 import { filterGames, isCalendarSeason, seasonMaps, seasonTeams, type GameView } from "@/lib/engine/league";
+import { playoffFormat } from "@/lib/playoff-formats";
 import { teamColor } from "@/lib/team-colors";
 import { cn } from "@/lib/utils";
 import { dateKey, fmtLongDate, toZonedInput, tzLabel } from "@/lib/time";
 import { STAGE_LABELS, type Team } from "@/lib/types";
-import { assignTimes, generateOfficialSchedule, saveGamePlan, updateGame } from "../../../../actions";
+import { assignTimes, generateOfficialSchedule, saveGamePlan, setPlayoffFormat, updateGame } from "../../../../actions";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -35,6 +37,8 @@ export default async function ScheduleAdmin({ params }: PageProps<"/admin/season
   // Seasons generated without matchdays (Season 2 onwards) are planned on the calendar.
   // Seasons that already have a matchday schedule (Season 1) keep the matchday tools below.
   const calendar = games.length === 0 || isCalendarSeason(idx, id);
+  const format = playoffFormat(season);
+  const playoffLocked = games.some((g) => g.fixture.stage !== "league" && g.completed);
 
   const groups = new Map<string, GameView[]>();
   for (const g of games) {
@@ -126,12 +130,33 @@ export default async function ScheduleAdmin({ params }: PageProps<"/admin/season
                   ))}
                 </NativeSelect>
               </Field>
+              {calendar && games.length === 0 && <PlayoffFormatChoice current={format.id} teamCount={n} />}
               <Button type="submit">{games.length ? "Regenerate" : calendar ? "Generate fixtures" : "Generate schedule"}</Button>
-              {n >= 4 ? (
+              {calendar ? (
+                <p className="w-full text-xs text-muted-foreground">
+                  {games.length ? `Playoffs: ${format.label}. ` : ""}Every playoff series is best of 3 and fills in as the league finishes.
+                </p>
+              ) : n >= 4 ? (
                 <p className="w-full text-xs text-muted-foreground">Playoffs (Q1, Eliminator, Q2, Final, best of 3) are added automatically and fill in as the league finishes.</p>
               ) : (
                 <p className="w-full text-xs text-muted-foreground">Playoffs need at least 4 teams.</p>
               )}
+            </ActionForm>
+          )}
+          {calendar && games.length > 0 && !playoffLocked && (
+            <ActionForm
+              action={setPlayoffFormat.bind(null, id)}
+              confirm="Rebuild the playoff series in this format? Playoff games are recreated (their dates are cleared); league games and dates stay as they are."
+              className="mt-6 grid gap-3 border-t pt-5"
+            >
+              <div>
+                <div className="font-heading text-sm font-bold tracking-wide uppercase">Change the playoff format</div>
+                <p className="text-xs text-muted-foreground">Keeps every league game and its date; only the playoff series are rebuilt.</p>
+              </div>
+              <PlayoffFormatChoice current={format.id} teamCount={n} />
+              <Button type="submit" variant="secondary" className="justify-self-start">
+                Update playoffs
+              </Button>
             </ActionForm>
           )}
         </Panel>

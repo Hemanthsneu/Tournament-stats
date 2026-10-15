@@ -1,8 +1,10 @@
 import "server-only";
 import { cache } from "react";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { buildSampleData } from "./sample-data";
-import { buildIndex, currentSeason, seasonByNumber, type LeagueIndex } from "./engine/league";
+import { buildIndex, featuredSeason, seasonByNumber, type LeagueIndex } from "./engine/league";
+import { SEASON_COOKIE } from "./season-cookie";
 import { isSupabaseConfigured } from "./supabase/config";
 import { createPublicClient } from "./supabase/server";
 import { withTeamColors } from "./team-colors";
@@ -106,7 +108,17 @@ export async function loadSeason(param: string) {
   return { idx, demo, season };
 }
 
+/**
+ * The season to show by default: the one this visitor last picked while it's still active,
+ * otherwise the featured active season (see featuredSeason).
+ */
+export async function preferredSeason(idx: LeagueIndex): Promise<Season | null> {
+  const picked = Number((await cookies()).get(SEASON_COOKIE)?.value);
+  const season = Number.isInteger(picked) ? seasonByNumber(idx.data, picked) : null;
+  return season?.status === "active" ? season : featuredSeason(idx);
+}
+
 export async function loadCurrentSeason() {
   const { idx } = await loadLeague();
-  return currentSeason(idx.data);
+  return preferredSeason(idx);
 }

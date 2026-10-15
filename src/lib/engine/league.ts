@@ -208,6 +208,39 @@ export function currentSeason(data: LeagueData): Season | null {
   );
 }
 
+/** Seasons running right now (several can overlap, e.g. one in its playoffs as the next starts). */
+export function activeSeasons(data: LeagueData): Season[] {
+  return sortedSeasons(data).filter((s) => s.status === "active");
+}
+
+/**
+ * The season to open by default when several are active: one already under way and not finished,
+ * then whichever has the soonest scheduled game, then the newest.
+ */
+export function featuredSeason(idx: LeagueIndex): Season | null {
+  const active = activeSeasons(idx.data);
+  if (active.length <= 1) return currentSeason(idx.data);
+  const info = active.map((season) => {
+    const games = filterGames(idx, { seasonId: season.id, type: "official" });
+    const next = upNext(games, 1)[0];
+    return {
+      season,
+      underway: games.some((g) => g.completed) && !!next,
+      at: next?.game.scheduled_at ?? "~",
+    };
+  });
+  info.sort((x, y) => Number(y.underway) - Number(x.underway) || (x.at < y.at ? -1 : x.at > y.at ? 1 : 0) || y.season.number - x.season.number);
+  return info[0].season;
+}
+
+/** Short stage for season pickers: "Champions", "Playoffs", "League", "Starting soon". */
+export function seasonPhase(idx: LeagueIndex, season: Season): string {
+  const games = filterGames(idx, { seasonId: season.id, type: "official" });
+  if (seasonPodium(idx, season.id).champion) return "Champions";
+  if (isLeagueComplete(idx, season.id)) return "Playoffs";
+  return games.some((g) => g.completed) ? "League" : "Starting soon";
+}
+
 export function seasonByNumber(data: LeagueData, n: number): Season | null {
   return data.seasons.find((s) => s.number === n) ?? null;
 }

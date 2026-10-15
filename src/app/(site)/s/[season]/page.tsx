@@ -11,11 +11,13 @@ import { StandingsTable } from "@/components/standings-table";
 import { featuredAuction, getViewer, loadCommunity, profileMap, realAuctions } from "@/lib/community";
 import { loadSeason } from "@/lib/data";
 import {
+  activeSeasons,
   currentSeason,
   filterGames,
   isLeagueComplete,
   leagueStandings,
   seasonMaps,
+  seasonPhase,
   seasonPodium,
   seasonTeams,
   standingsMovement,
@@ -104,6 +106,26 @@ export default async function SeasonHome({ params }: PageProps<"/s/[season]">) {
       ],
     },
   ];
+  // Other seasons running at the same time (e.g. last season's playoffs while this one starts).
+  for (const other of activeSeasons(idx.data).filter((x) => x.id !== season.id)) {
+    const otherNext = upNext(filterGames(idx, { seasonId: other.id, type: "official" }), 1)[0];
+    const otherChampion = seasonPodium(idx, other.id).champion;
+    slides.push({
+      kind: "banner",
+      id: `also-${other.number}`,
+      live: !otherChampion,
+      eyebrow: `Also live · Season ${other.number}`,
+      title: other.name,
+      text: otherChampion
+        ? `${otherChampion.name} are champions.`
+        : otherNext
+          ? `${seasonPhase(idx, other)}. Next: ${otherNext.label}, ${otherNext.teamA?.name ?? "TBD"} vs ${otherNext.teamB?.name ?? "TBD"}${otherNext.game.scheduled_at ? `, ${fmtDateTime(otherNext.game.scheduled_at)}` : ""}.`
+          : `${seasonPhase(idx, other)}.`,
+      href: `/s/${other.number}`,
+      cta: `Go to Season ${other.number}`,
+      team: otherNext?.teamA ? lite(otherNext.teamA)! : otherChampion ? lite(otherChampion)! : undefined,
+    });
+  }
   if (champion) {
     slides.push({
       kind: "banner",

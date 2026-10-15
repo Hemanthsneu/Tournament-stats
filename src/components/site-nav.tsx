@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AccountButton } from "@/components/account-button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SEASON_COOKIE } from "@/lib/season-cookie";
 import { cn } from "@/lib/utils";
 
 const SEASON_LINKS = [
@@ -36,7 +37,7 @@ export function SiteNav({
   current,
   auction,
 }: {
-  seasons: { number: number; name: string }[];
+  seasons: { number: number; name: string; active?: boolean; phase?: string }[];
   current: number | null;
   /** Shown as an "Auction" link (with a live dot while bidding is on). */
   auction?: { live: boolean } | null;
@@ -48,8 +49,16 @@ export function SiteNav({
   const seasonForLinks = selected === "all" ? current : selected;
   const section = match?.[2] ?? "";
 
-  // Stay on the same section when switching seasons ("All-time" is only offered on Stats).
-  const onSeasonChange = (value: string) => router.push(`/s/${value}${match ? section : ""}`);
+  // Stay on the same section when switching seasons ("All-time" is only offered on Stats), and
+  // remember the pick so the home page opens this season next time.
+  const onSeasonChange = (value: string) => {
+    if (value !== "all") document.cookie = `${SEASON_COOKIE}=${value}; path=/; max-age=${60 * 60 * 24 * 90}; samesite=lax`;
+    router.push(`/s/${value}${match ? section : ""}`);
+  };
+  // Two or more seasons running at once get a one-tap switch; the dropdown stays for the rest.
+  const live = seasons.filter((s) => s.active).sort((a, b) => a.number - b.number);
+  const showSwitch = live.length > 1;
+  const showSelect = !showSwitch || seasons.length > live.length || section === "/stats";
 
   const links = [
     ...(seasonForLinks != null ? SEASON_LINKS.map((l) => ({ ...l, href: `/s/${seasonForLinks}${l.href}` })) : []),
@@ -88,7 +97,31 @@ export function SiteNav({
           {navLinks("h-full")}
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          {seasons.length > 0 && selected && (
+          {showSwitch && (
+            <div className="flex rounded-md bg-white/5 p-0.5 ring-1 ring-white/15" role="group" aria-label="Season">
+              {live.map((s) => {
+                const on = selected === String(s.number);
+                return (
+                  <button
+                    key={s.number}
+                    type="button"
+                    onClick={() => onSeasonChange(String(s.number))}
+                    aria-pressed={on}
+                    title={`${s.name}${s.phase ? ` · ${s.phase}` : ""}`}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded px-2.5 py-1 font-heading text-sm font-bold tracking-wide whitespace-nowrap uppercase transition-colors",
+                      on ? "bg-white text-brand" : "text-white/70 hover:bg-white/10 hover:text-white",
+                    )}
+                  >
+                    <span className={cn("size-1.5 rounded-full bg-hot", s.phase !== "Champions" && "animate-pulse")} aria-hidden />
+                    S{s.number}
+                    {s.phase && <span className={cn("hidden text-[11px] font-semibold normal-case sm:inline", on ? "text-brand/60" : "text-white/50")}>{s.phase}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {showSelect && seasons.length > 0 && selected && (
             <Select value={selected} onValueChange={onSeasonChange}>
               <SelectTrigger
                 size="sm"

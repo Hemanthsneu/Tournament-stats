@@ -5,14 +5,17 @@ import { TeamLogo } from "@/components/team";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { loadLeague } from "@/lib/data";
-import { currentSeason, filterGames, seasonMaps, seasonTeams, sortedSeasons, upNext } from "@/lib/engine/league";
+import { featuredSeason, filterGames, seasonMaps, seasonPhase, seasonTeams, sortedSeasons, upNext } from "@/lib/engine/league";
+import { cn } from "@/lib/utils";
 import { fmtDateTime } from "@/lib/time";
 
 export const metadata = { title: "Admin" };
 
-export default async function AdminHome() {
+export default async function AdminHome({ searchParams }: PageProps<"/admin">) {
+  const { season: pick } = await searchParams;
   const { idx } = await loadLeague(true);
-  const season = currentSeason(idx.data) ?? sortedSeasons(idx.data)[0] ?? null;
+  const all = sortedSeasons(idx.data);
+  const season = all.find((s) => String(s.number) === pick) ?? featuredSeason(idx) ?? all[0] ?? null;
 
   if (!season) {
     return (
@@ -46,8 +49,28 @@ export default async function AdminHome() {
     { done: season.status !== "draft", label: `Season published (status: ${season.status})`, href: base },
   ];
 
+  // Seasons that aren't finished get a tab, so overlapping seasons are one click apart.
+  const tabs = all.filter((s) => s.status !== "completed" || s.id === season.id);
+
   return (
     <div className="space-y-6">
+      {tabs.length > 1 && (
+        <div className="flex flex-wrap gap-1 border-b">
+          {tabs.map((s) => (
+            <Link
+              key={s.id}
+              href={`/admin?season=${s.number}`}
+              className={cn(
+                "-mb-px flex items-center gap-2 border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground hover:text-foreground",
+                s.id === season.id && "border-hot text-foreground",
+              )}
+            >
+              <b className="font-heading tracking-wide uppercase">S{s.number}</b> {s.name}
+              <span className="text-xs text-muted-foreground">· {s.status === "draft" ? "Draft" : seasonPhase(idx, s)}</span>
+            </Link>
+          ))}
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">{season.name}</h1>
         <Badge variant="outline">{season.status}</Badge>

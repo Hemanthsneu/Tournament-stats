@@ -612,7 +612,7 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
                   </div>
                 </div>
                 <div className="mt-4 h-1 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-foreground/70 transition-[width] duration-500" style={{ width: `${Math.max(0, (purse.left / a.purse) * 100)}%` }} />
+                  <div className="h-full rounded-full bg-foreground/70 transition-[width] duration-500" style={{ width: `${Math.max(0, (purse.left / purse.total) * 100)}%` }} />
                 </div>
                 <div className="mt-2 flex justify-between text-[11px] text-muted-foreground">
                   <span>

@@ -24,6 +24,8 @@ export function bidOptions(auction: Auction, lot: AuctionLot, count = 3): number
 }
 
 export interface TeamPurse {
+  /** The team's budget (its own, or the auction default). */
+  total: number;
   spent: number;
   bought: number;
   left: number;
@@ -33,8 +35,10 @@ export interface TeamPurse {
 }
 
 export function teamPurse(auction: Auction, team: AuctionSnapshot["teams"][number]): TeamPurse {
-  const left = auction.purse - team.spent;
+  const total = team.purse ?? auction.purse;
+  const left = total - team.spent;
   return {
+    total,
     spent: team.spent,
     bought: team.bought,
     left,

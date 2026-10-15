@@ -77,6 +77,11 @@ export default async function SeasonHome({ params }: PageProps<"/s/[season]">) {
   const auction = featuredAuction({ ...community, auctions });
   const showAuction = auction && (auction.season_id === season.id || (isCurrent && auction.status !== "completed"));
   const auctionLive = auction?.status === "live" || auction?.status === "paused";
+  const budgets = auction ? community.auctionTeams.filter((t) => t.auction_id === auction.id).map((t) => t.purse ?? auction.purse) : [];
+  const budgetText =
+    auction && new Set(budgets).size > 1
+      ? `budgets from ${Math.min(...budgets).toLocaleString("en-IN")} to ${Math.max(...budgets).toLocaleString("en-IN")}`
+      : `a ${(budgets[0] ?? auction?.purse ?? 0).toLocaleString("en-IN")} purse`;
 
   // Hero carousel
   const slides: HeroSlide[] = [
@@ -173,7 +178,7 @@ export default async function SeasonHome({ params }: PageProps<"/s/[season]">) {
               icon: "crate",
               eyebrow: auction.registration_open ? "Registration open" : "Coming soon",
               title: auction.name,
-              text: `${auction.starts_at ? `Starts ${fmtDateTime(auction.starts_at)}. ` : ""}Captains bid live with a ${auction.purse.toLocaleString("en-IN")} purse. Register, share your availability, then watch it live.`,
+              text: `${auction.starts_at ? `Starts ${fmtDateTime(auction.starts_at)}. ` : ""}Captains bid live with ${budgetText}. Register, share your availability, then watch it live.`,
               href: "/auction",
               cta: "Auction room",
             },

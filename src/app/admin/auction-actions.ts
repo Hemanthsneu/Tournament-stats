@@ -120,7 +120,7 @@ export async function duplicateAsPractice(auctionId: string): Promise<ActionResu
         .single(),
     );
     id = copy.id;
-    const teams = must(await db.from("auction_teams").select("team_id, captain_player_id, sort_order").eq("auction_id", auctionId));
+    const teams = must(await db.from("auction_teams").select("team_id, captain_player_id, sort_order, purse").eq("auction_id", auctionId));
     if (teams.length) must(await db.from("auction_teams").insert(teams.map((t) => ({ ...t, auction_id: copy.id }))));
     const lots = must(await db.from("auction_lots").select("player_id, set_name, set_order, base_price").eq("auction_id", auctionId));
     if (lots.length) must(await db.from("auction_lots").insert(lots.map((l) => ({ ...l, auction_id: copy.id }))));
@@ -173,6 +173,20 @@ export async function setCaptain(auctionId: string, teamId: string, fd: FormData
     }
     must(await db.from("auction_teams").update({ captain_player_id: playerId }).eq("auction_id", auctionId).eq("team_id", teamId));
     return playerId ? "Captain set (and removed from the pool)" : "Captain cleared";
+  });
+}
+
+/** A team's own budget. Empty = use the auction's default purse. Can't go below what it has spent. */
+export async function setTeamBudget(auctionId: string, teamId: string, fd: FormData) {
+  return run(async (db) => {
+    const purse = String(fd.get("purse") ?? "").trim() === "" ? null : int(fd, "purse", { min: 1, max: 10_000_000, label: "Budget" });
+    if (purse != null) {
+      const sold = must(await db.from("auction_lots").select("sold_price").eq("auction_id", auctionId).eq("sold_team_id", teamId).eq("status", "sold"));
+      const spent = sold.reduce((n, l) => n + (l.sold_price ?? 0), 0);
+      if (purse < spent) throw new UserError(`This team has already spent ${spent.toLocaleString("en-IN")}, so its budget can't be lower than that.`);
+    }
+    must(await db.from("auction_teams").update({ purse }).eq("auction_id", auctionId).eq("team_id", teamId));
+    return purse == null ? "Budget reset to the auction default" : `Budget set to ${purse.toLocaleString("en-IN")}`;
   });
 }
 

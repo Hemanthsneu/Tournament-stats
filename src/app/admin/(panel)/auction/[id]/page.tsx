@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { WeekStrip } from "@/components/availability";
+import { credits } from "@/lib/auction";
 import { timeWindow } from "@/lib/availability";
 import { availabilityMap, loadCommunity, verifiedSet } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
@@ -28,6 +29,7 @@ import {
   removeLot,
   resetAuction,
   setCaptain,
+  setTeamBudget,
   stopAuction,
   updateAuctionSettings,
   updateLot,
@@ -155,7 +157,7 @@ export default async function AuctionSetup({ params }: PageProps<"/admin/auction
               className="sm:max-w-xs"
             />
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <TextField label="Purse per team" name="purse" type="number" min={1} defaultValue={auction.purse} />
+              <TextField label="Default purse per team" name="purse" type="number" min={1} defaultValue={auction.purse} hint="Set a different budget per team below." />
               <TextField label="Base price" name="base_price" type="number" min={0} defaultValue={auction.base_price} />
               <TextField label="Min players to buy" name="min_buys" type="number" min={0} defaultValue={auction.min_buys} />
               <TextField label="Max players to buy" name="max_buys" type="number" min={1} defaultValue={auction.max_buys} />
@@ -194,6 +196,7 @@ export default async function AuctionSetup({ params }: PageProps<"/admin/auction
             {teams.map((t) => {
               const team = idx.teamById.get(t.team_id);
               const capVerified = t.captain_player_id ? verified.has(t.captain_player_id) : false;
+              const spent = lots.filter((l) => l.status === "sold" && l.sold_team_id === t.team_id).reduce((n, l) => n + (l.sold_price ?? 0), 0);
               return (
                 <li key={t.team_id} className="flex flex-wrap items-center gap-3 rounded-lg border p-3">
                   <TeamLogo team={team ?? null} size="md" />
@@ -210,7 +213,26 @@ export default async function AuctionSetup({ params }: PageProps<"/admin/auction
                         <span className="text-muted-foreground">No captain yet</span>
                       )}
                     </div>
+                    <div className="text-xs text-muted-foreground">
+                      Budget {credits(t.purse ?? auction.purse)}
+                      {t.purse == null ? " (default)" : ""}
+                      {spent ? ` · spent ${credits(spent)}` : ""}
+                    </div>
                   </div>
+                  <ActionForm action={setTeamBudget.bind(null, id, t.team_id)} className="flex gap-2">
+                    <Input
+                      name="purse"
+                      type="number"
+                      min={Math.max(1, spent)}
+                      defaultValue={t.purse ?? ""}
+                      placeholder={`${credits(auction.purse)} default`}
+                      className="h-8 w-32 text-xs"
+                      aria-label={`Budget for ${team?.name}`}
+                    />
+                    <Button type="submit" size="sm" variant="secondary">
+                      Save budget
+                    </Button>
+                  </ActionForm>
                   <ActionForm action={setCaptain.bind(null, id, t.team_id)} className="flex gap-2">
                     <NativeSelect name="captain_player_id" defaultValue={t.captain_player_id ?? ""} className="h-8 w-44 text-xs">
                       <option value="">No captain</option>

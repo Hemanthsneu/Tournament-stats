@@ -199,6 +199,8 @@ export interface AuctionTeam {
   team_id: string;
   captain_player_id: string | null;
   sort_order: number;
+  /** This team's budget; null = the auction's default purse. */
+  purse?: number | null;
 }
 
 export interface AuctionLot {

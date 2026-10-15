@@ -13,9 +13,17 @@ const display = Barlow_Condensed({
   style: ["normal", "italic"],
 });
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "https://wow-league.vercel.app");
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: { default: "WOW League", template: "%s · WOW League" },
   description: "Points table, schedule, playoffs, player stats and the live auction for our BGMI WOW mode league.",
+  applicationName: "WOW League",
+  openGraph: { type: "website", siteName: "WOW League", locale: "en_IN" },
+  twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = { themeColor: "#0c1a3a" };

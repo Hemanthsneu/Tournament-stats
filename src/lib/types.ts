@@ -191,6 +191,8 @@ export interface Auction {
   voice_enabled: boolean;
   /** Planned start, shown to players as a countdown (optional). */
   starts_at?: string | null;
+  /** Audience chat in the room (organizers can switch it off). */
+  chat_enabled?: boolean;
   /** Practice runs: same room, clearly labelled, never written to rosters or stats. */
   is_practice: boolean;
   current_lot_id: string | null;
@@ -244,6 +246,17 @@ export interface AuctionSnapshot {
   teams: (AuctionTeam & { spent: number; bought: number })[];
   lots: AuctionLot[];
   bids: AuctionBid[];
+}
+
+export interface AuctionMessage {
+  id: number;
+  auction_id: string;
+  user_id: string | null;
+  author: string;
+  role: "fan" | "player" | "captain" | "organizer";
+  team_id: string | null;
+  body: string;
+  created_at: string;
 }
 
 export interface PlayerAvailability {

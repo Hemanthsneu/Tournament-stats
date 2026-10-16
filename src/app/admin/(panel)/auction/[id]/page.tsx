@@ -25,6 +25,7 @@ import {
   deleteAuction,
   duplicateAsPractice,
   finalizeAuction,
+  reopenAuction,
   removeAuctionTeam,
   removeLot,
   resetAuction,
@@ -61,6 +62,8 @@ export default async function AuctionSetup({ params }: PageProps<"/admin/auction
   const usedTeams = new Set(teams.map((t) => t.team_id));
   const otherTeams = idx.data.teams.filter((t) => !usedTeams.has(t.id)).sort((a, b) => a.name.localeCompare(b.name));
   const live = auction.status === "live" || auction.status === "paused";
+  const signedCount = teams.filter((t) => t.captain_player_id).length + lots.filter((l) => l.status === "sold").length;
+  const playedGames = auction.season_id ? filterGames(idx, { seasonId: auction.season_id, type: "official" }).filter((g) => g.completed).length : 0;
   const done = lots.filter((l) => l.status === "sold" || l.status === "unsold").length;
 
   return (
@@ -122,6 +125,16 @@ export default async function AuctionSetup({ params }: PageProps<"/admin/auction
               size="default"
             >
               <RotateCcw /> Restart from scratch
+            </ActionButton>
+          )}
+          {auction.status === "completed" && !auction.is_practice && (
+            <ActionButton
+              action={reopenAuction.bind(null, id)}
+              confirm={`Reopen "${auction.name}"? The ${signedCount} captains and bought players it added to the season's rosters are taken off them (other roster entries stay).${playedGames ? ` ${playedGames} games of that season already have results; those stay as they are.` : ""} Results are kept: re-auction some players or restart from scratch, then finish again. To start over with a brand-new auction, reopen and then delete this one.`}
+              variant="default"
+              size="default"
+            >
+              <RotateCcw /> Reopen auction
             </ActionButton>
           )}
           {!live && (auction.is_practice || auction.status !== "completed") && (
@@ -387,14 +400,20 @@ export default async function AuctionSetup({ params }: PageProps<"/admin/auction
 
       {!auction.is_practice && (
         <Panel title="4. Finish" description="When everyone is sold or unsold, this adds the captains and their bought players to the season's rosters. Season 1 is never touched.">
-          <ActionButton
-            action={finalizeAuction.bind(null, id)}
-            confirm="Write the auction result into the season rosters now? (Do this once, after the real auction.)"
-            variant="default"
-            size="default"
-          >
-            Finish auction & create rosters
-          </ActionButton>
+          {auction.status === "completed" ? (
+            <p className="text-sm text-muted-foreground">
+              Finished: the rosters are written. Need to redo it? Use <b className="text-foreground">Reopen auction</b> at the top; it takes those roster entries back.
+            </p>
+          ) : (
+            <ActionButton
+              action={finalizeAuction.bind(null, id)}
+              confirm="Write the auction result into the season rosters now? (You can reopen it later if you need to redo it.)"
+              variant="default"
+              size="default"
+            >
+              Finish auction & create rosters
+            </ActionButton>
+          )}
         </Panel>
       )}
     </div>

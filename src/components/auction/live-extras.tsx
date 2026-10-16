@@ -5,47 +5,67 @@ import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { BellRinging, CalendarPlus, Eye } from "@/components/icons";
-import { ChickenIcon, CrosshairIcon, MedkitIcon, PanIcon } from "@/components/pubg-icons";
+import { ChickenIcon } from "@/components/pubg-icons";
 import { credits } from "@/lib/auction";
 import { onColor, teamColor } from "@/lib/team-colors";
 import { fmtDateTime } from "@/lib/time";
 import type { AuctionLot, Team } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import type { Sfx } from "./sfx";
 
 // ---------------------------------------------------------------------------
 // Viewers and reactions: realtime presence + broadcast on one channel. Nothing is stored.
 // ---------------------------------------------------------------------------
 
+/** Reactions: 3D emoji (Fluent Emoji, MIT) with a game sound each. */
 export const REACTIONS = {
-  pan: { label: "Pan!", Icon: PanIcon, color: "#f2b705" },
-  chicken: { label: "Chicken dinner", Icon: ChickenIcon, color: "#ff9f43" },
-  headshot: { label: "Headshot", Icon: CrosshairIcon, color: "#ff2d4b" },
-  revive: { label: "Revive", Icon: MedkitIcon, color: "#34d399" },
-} as const;
+  headshot: { label: "Headshot", img: "/reactions/headshot.png", sfx: "awm" },
+  fire: { label: "On fire", img: "/reactions/fire.png", sfx: "smg" },
+  pan: { label: "Pan!", img: "/reactions/pan.png", sfx: "pan" },
+  nade: { label: "Nade", img: "/reactions/nade.png", sfx: "nade" },
+  dinner: { label: "Chicken dinner", img: "/reactions/dinner.png", sfx: "dinner" },
+  money: { label: "Big money", img: "/reactions/money.png", sfx: "money" },
+  boom: { label: "Boom", img: "/reactions/boom.png", sfx: "boom" },
+  clap: { label: "GG", img: "/reactions/clap.png", sfx: "clap" },
+  lol: { label: "LOL", img: "/reactions/lol.png", sfx: null },
+  skull: { label: "Rekt", img: "/reactions/skull.png", sfx: "skull" },
+} as const satisfies Record<string, { label: string; img: string; sfx: Sfx | null }>;
 export type ReactionKind = keyof typeof REACTIONS;
 const isReaction = (k: unknown): k is ReactionKind => typeof k === "string" && k in REACTIONS;
 
-type Floater = { id: number; kind: ReactionKind; x: number; drift: number };
+type Floater = { id: number; kind: ReactionKind; x: number; drift: number; spin: number };
 
 const MAX_FLOATERS = 40;
-const SEND_GAP_MS = 700; // per viewer
+const SEND_GAP_MS = 600; // per viewer
 const RECEIVE_LIMIT = 5; // per sender per 3 seconds; anything faster is ignored
 
-/** Live viewer count and floating reactions for one auction room. */
-export function useAuctionLive(sb: SupabaseClient, auctionId: string, userId: string | null) {
+/**
+ * Live viewer count and floating reactions for one auction room. `onReaction` fires for every
+ * reaction shown (yours and everyone else's), e.g. to play its sound.
+ */
+export function useAuctionLive(sb: SupabaseClient, auctionId: string, userId: string | null, onReaction?: (kind: ReactionKind) => void) {
   // Signed-in viewers count once across tabs; guests once per tab.
   const [key] = useState(() => userId ?? `guest-${Math.random().toString(36).slice(2, 10)}`);
   const [watching, setWatching] = useState(0);
   const [floaters, setFloaters] = useState<Floater[]>([]);
+  const [hype, setHype] = useState<Partial<Record<ReactionKind, number>>>({});
   const channel = useRef<RealtimeChannel | null>(null);
   const seq = useRef(0);
   const recent = useRef(new Map<string, number[]>());
   const lastSent = useRef(0);
+  const onReactionRef = useRef(onReaction);
+  useEffect(() => {
+    onReactionRef.current = onReaction;
+  }, [onReaction]);
 
   const show = useCallback((kind: ReactionKind) => {
     const id = ++seq.current;
-    setFloaters((f) => [...f.slice(-(MAX_FLOATERS - 1)), { id, kind, x: 6 + Math.random() * 88, drift: (Math.random() - 0.5) * 80 }]);
-    setTimeout(() => setFloaters((f) => f.filter((x) => x.id !== id)), 2600);
+    setFloaters((f) => [...f.slice(-(MAX_FLOATERS - 1)), { id, kind, x: 6 + Math.random() * 88, drift: (Math.random() - 0.5) * 120, spin: (Math.random() - 0.5) * 50 }]);
+    setHype((h) => ({ ...h, [kind]: (h[kind] ?? 0) + 1 }));
+    setTimeout(() => setFloaters((f) => f.filter((x) => x.id !== id)), 2800);
+    // The count on each button shows the last few seconds of hype.
+    setTimeout(() => setHype((h) => ({ ...h, [kind]: Math.max((h[kind] ?? 1) - 1, 0) })), 6000);
+    onReactionRef.current?.(kind);
   }, []);
 
   useEffect(() => {
@@ -81,7 +101,7 @@ export function useAuctionLive(sb: SupabaseClient, auctionId: string, userId: st
     [key, show],
   );
 
-  return { watching, floaters, react };
+  return { watching, floaters, hype, react };
 }
 
 export function WatchingCount({ count, big }: { count: number; big?: boolean }) {
@@ -94,61 +114,82 @@ export function WatchingCount({ count, big }: { count: number; big?: boolean }) 
 }
 
 /** Reactions floating up over the stage. Sits inside a `relative overflow-hidden` container. */
-export function ReactionLayer({ floaters }: { floaters: Floater[] }) {
+export function ReactionLayer({ floaters, big }: { floaters: Floater[]; big?: boolean }) {
   const reduce = useReducedMotion();
   return (
     <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden" aria-hidden>
       <AnimatePresence>
-        {floaters.map((f) => {
-          const { Icon, color } = REACTIONS[f.kind];
-          return (
-            <motion.div
-              key={f.id}
-              className="absolute bottom-6"
-              style={{ left: `${f.x}%`, color }}
-              initial={{ y: 0, opacity: 0, scale: 0.6 }}
-              animate={
-                reduce
-                  ? { opacity: [0, 1, 0] }
-                  : { y: -300, x: f.drift, opacity: [0, 1, 1, 0], scale: [0.6, 1.25, 1, 0.9], rotate: f.drift / 3 }
-              }
-              transition={{ duration: 2.4, ease: "easeOut" }}
-            >
-              <Icon className="size-11 drop-shadow-[0_3px_8px_rgba(0,0,0,0.45)]" />
-            </motion.div>
-          );
-        })}
+        {floaters.map((f) => (
+          <motion.img
+            key={f.id}
+            src={REACTIONS[f.kind].img}
+            alt=""
+            className={cn("absolute bottom-4 drop-shadow-[0_6px_14px_rgba(0,0,0,0.45)]", big ? "size-20" : "size-14")}
+            style={{ left: `${f.x}%` }}
+            initial={{ y: 0, opacity: 0, scale: 0.3 }}
+            animate={
+              reduce
+                ? { opacity: [0, 1, 0] }
+                : { y: [0, -60, -340], x: [0, f.drift * 0.3, f.drift], opacity: [0, 1, 1, 0], scale: [0.3, 1.35, 1, 0.85], rotate: [0, f.spin, -f.spin / 2] }
+            }
+            transition={{ duration: 2.6, ease: "easeOut", times: [0, 0.18, 1] }}
+          />
+        ))}
       </AnimatePresence>
     </div>
   );
 }
 
-export function ReactionBar({ onReact, canReact }: { onReact: (kind: ReactionKind) => void; canReact: boolean }) {
-  if (!canReact) {
-    return (
-      <Link href="/login?next=/auction" className="text-xs text-muted-foreground underline-offset-2 hover:underline">
-        Sign in to react
-      </Link>
-    );
-  }
+export function ReactionBar({
+  onReact,
+  canReact,
+  hype,
+  crowdOn,
+  onCrowdToggle,
+}: {
+  onReact: (kind: ReactionKind) => void;
+  canReact: boolean;
+  hype: Partial<Record<ReactionKind, number>>;
+  crowdOn: boolean;
+  onCrowdToggle: () => void;
+}) {
   return (
-    <div className="flex items-center gap-1.5" role="group" aria-label="React">
-      {(Object.keys(REACTIONS) as ReactionKind[]).map((k) => {
-        const { Icon, label, color } = REACTIONS[k];
-        return (
-          <button
-            key={k}
-            type="button"
-            onClick={() => onReact(k)}
-            title={label}
-            aria-label={`React: ${label}`}
-            className="grid size-10 place-items-center rounded-full border bg-card transition hover:-translate-y-0.5 hover:shadow-md active:scale-90"
-            style={{ color }}
-          >
-            <Icon className="size-5" />
-          </button>
-        );
-      })}
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="-mx-1 flex min-w-0 flex-1 gap-1.5 overflow-x-auto px-1 py-1.5 [scrollbar-width:none]" role="group" aria-label="React">
+        {(Object.keys(REACTIONS) as ReactionKind[]).map((k) => {
+          const { label, img } = REACTIONS[k];
+          const n = hype[k] ?? 0;
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() => (canReact ? onReact(k) : undefined)}
+              disabled={!canReact}
+              title={canReact ? label : "Sign in to react"}
+              aria-label={`React: ${label}`}
+              className="group relative grid size-12 shrink-0 place-items-center rounded-2xl border bg-card shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md active:scale-90 disabled:opacity-60 disabled:hover:translate-y-0 sm:size-14"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={img} alt="" className="size-8 transition-transform duration-200 group-hover:scale-110 group-active:scale-95 sm:size-9" />
+              {n > 1 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-5 rounded-full bg-hot px-1 font-heading text-[11px] leading-5 font-bold text-white tabular">
+                  {n}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+        {!canReact && (
+          <Link href="/login?next=/auction" className="underline-offset-2 hover:underline">
+            Sign in to react
+          </Link>
+        )}
+        <button type="button" onClick={onCrowdToggle} className="rounded-full border px-2.5 py-1 transition-colors hover:bg-accent" aria-pressed={crowdOn}>
+          Crowd sounds {crowdOn ? "on" : "off"}
+        </button>
+      </div>
     </div>
   );
 }

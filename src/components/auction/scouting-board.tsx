@@ -25,6 +25,7 @@ export function ScoutingBoard({
   players,
   matchDays,
   canShortlist,
+  onDraw,
 }: {
   auctionId: string;
   lots: AuctionLot[];
@@ -32,6 +33,8 @@ export function ScoutingBoard({
   /** When the season has match days, filters and sorting use them instead of the usual week. */
   matchDays: { day: string; label: string | null }[];
   canShortlist: boolean;
+  /** Organizers: put this player on the block now. */
+  onDraw?: (lot: AuctionLot) => void;
 }) {
   const sb = browserSupabase();
   const [tab, setTab] = useState<Tab>("pool");
@@ -180,6 +183,7 @@ export function ScoutingBoard({
                     <PanIcon className="size-3.5" /> MVP
                   </span>
                 </th>
+                {onDraw && <th className="px-2 py-2.5 pr-4" />}
               </tr>
             </thead>
             <tbody>
@@ -225,6 +229,19 @@ export function ScoutingBoard({
                   <td className="px-2 py-2 text-right font-heading text-base font-bold">{p.stats?.kills ?? "–"}</td>
                   <td className="px-2 py-2 text-right text-muted-foreground">{p.stats ? p.stats.avgKills.toFixed(1) : "–"}</td>
                   <td className="px-2 py-2 pr-4 text-right text-muted-foreground">{p.stats ? Math.round(p.stats.mvp) : "–"}</td>
+                  {onDraw && (
+                    <td className="px-2 py-2 pr-4 text-right">
+                      {(lot.status === "pool" || lot.status === "unsold") && (
+                        <button
+                          type="button"
+                          onClick={() => confirm(`Put ${p.ign} on the block now?`) && onDraw(lot)}
+                          className="rounded-md border px-2 py-1 text-xs font-medium whitespace-nowrap transition-colors hover:border-hot hover:text-hot"
+                        >
+                          Draw now
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

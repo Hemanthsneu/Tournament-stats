@@ -304,6 +304,15 @@ export async function resetAuction(auctionId: string) {
   });
 }
 
+/** Undoes "Finish": takes back the roster entries this auction wrote and reopens it (results stay). */
+export async function reopenAuction(auctionId: string) {
+  return run(async (db) => {
+    const { data, error } = await db.rpc("auction_reopen", { p_auction_id: auctionId });
+    if (error) throw new UserError(error.message);
+    return `Reopened: ${data} roster ${data === 1 ? "entry" : "entries"} taken back. Results are kept, so you can re-auction players or restart from scratch, then finish again.`;
+  });
+}
+
 export async function finalizeAuction(auctionId: string) {
   return run(async (db) => {
     const { data, error } = await db.rpc("auction_finalize", { p_auction_id: auctionId });

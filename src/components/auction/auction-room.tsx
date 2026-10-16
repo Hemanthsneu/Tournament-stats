@@ -1,25 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
-import { useReducedMotion } from "motion/react";
+import { AnimatePresence, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
-import {
-  BadgeCheck,
-  Gavel,
-  Maximize,
-  Monitor,
-  Pause,
-  Play,
-  RotateCcw,
-  Shuffle,
-  Square,
-  Undo2,
-  Volume2,
-  VolumeX,
-  X,
-} from "@/components/icons";
-import { TeamLogo } from "@/components/team";
+import { Maximize, Monitor, Pause, Play, RotateCcw, Shuffle, Square, Undo2, Volume2, VolumeX, X } from "@/components/icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,13 +13,29 @@ import { browserSupabase } from "@/lib/supabase/browser";
 import { teamColor } from "@/lib/team-colors";
 import type { AuctionLot, AuctionSnapshot, DateStatus, PlayerAvailability, Team } from "@/lib/types";
 import { AvailabilityBlock } from "@/components/availability";
-import ClickSpark from "@/components/reactbits/ClickSpark";
 import DecryptedText from "@/components/reactbits/DecryptedText";
-import ShinyText from "@/components/reactbits/ShinyText";
-import { MyStatus, ReactionBar, ReactionLayer, StartCountdown, useAlerts, useAuctionLive, WatchingCount } from "./live-extras";
-import { ScoutingBoard } from "./scouting-board";
-import { cn } from "@/lib/utils";
 import { countWord, useAnnouncer } from "./announcer";
+import { ChatPanel, ChatSheet, useAuctionChat } from "./chat-panel";
+import { MyStatus, REACTIONS, ReactionBar, ReactionLayer, StartCountdown, useAlerts, useAuctionLive, WatchingCount, type ReactionKind } from "./live-extras";
+import {
+  BidLadder,
+  CaptainPanel,
+  IdleStage,
+  MobileBidBar,
+  PlayerChips,
+  PlayerTile,
+  PriceBlock,
+  ResultsList,
+  SoldOverlay,
+  StatRow,
+  StatusBadge,
+  TeamCard,
+  TeamGlow,
+  TimerRing,
+} from "./room-ui";
+import { ScoutingBoard } from "./scouting-board";
+import { crowdSounds, playSfx } from "./sfx";
+import { cn } from "@/lib/utils";
 
 export interface RoomPlayer {
   id: string;
@@ -62,21 +63,37 @@ interface Props {
 
 type Result = { kind: "sold" | "unsold"; lot: AuctionLot; at: number };
 
+/** After the price changes, bid buttons pause briefly so a tap meant for the old price can't land on the new one. */
+const FREEZE_MS = 900;
+
 export function AuctionRoom({ auctionId, initial, players, matchDays, teams, viewer, screen }: Props) {
   const sb = browserSupabase();
   const [snap, setSnap] = useState(initial);
   const [now, setNow] = useState(() => Date.parse(initial.now));
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
-  const [flash, setFlash] = useState(0);
+  const [priceChangedAt, setPriceChangedAt] = useState(0);
   const reduceMotion = useReducedMotion();
   const [unsoldBase, setUnsoldBase] = useState("");
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatSeenAt, setChatSeenAt] = useState(initial.now);
   const offset = useRef(0);
   const bestRtt = useRef(Infinity);
   const prev = useRef<AuctionSnapshot | null>(null);
   const announcer = useAnnouncer();
   const { speak, sfx } = announcer;
-  const live = useAuctionLive(sb, auctionId, viewer.userId ?? null);
+  const crowdOn = useSyncExternalStore(crowdSounds.subscribe, crowdSounds.get, () => true);
+
+  // Everyone's reactions play their sound here too, when sound is on (quietly, never over the voice).
+  const onReaction = useCallback(
+    (kind: ReactionKind) => {
+      const s = REACTIONS[kind].sfx;
+      if (s && announcer.enabled && crowdSounds.get()) playSfx(s, { crowd: true });
+    },
+    [announcer.enabled],
+  );
+  const live = useAuctionLive(sb, auctionId, viewer.userId ?? null, onReaction);
+  const chat = useAuctionChat(sb, auctionId);
   const alerts = useAlerts();
 
   // ---- data: one consistent snapshot, refreshed on every realtime change (+ slow polling fallback)
@@ -157,7 +174,7 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
     }, Math.random() * 400);
   }, [expired, lot, sb, refresh]);
 
-  // ---- announcer: react to what changed between snapshots
+  // ---- announcer + effects: react to what changed between snapshots
   useEffect(() => {
     const p = prev.current;
     prev.current = snap;
@@ -168,27 +185,29 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
       const closed = snap.lots.find((l) => l.id === before);
       if (closed?.status === "sold") {
         sfx("sold");
+        if (announcer.enabled) playSfx("sold", { volume: 0.4 });
         speak(`Sold! ${ign(closed.player_id)} to ${teamName(closed.sold_team_id)} for ${closed.sold_price}.`, { interrupt: true });
         setResult({ kind: "sold", lot: closed, at: Date.now() });
       } else if (closed?.status === "unsold") {
-        sfx("unsold");
+        if (announcer.enabled) playSfx("unsold", { volume: 0.35 });
         speak(`${ign(closed.player_id)} goes unsold.`, { interrupt: true });
         setResult({ kind: "unsold", lot: closed, at: Date.now() });
       }
     }
-    if (after && after !== before) {
-      const l = snap.lots.find((x) => x.id === after);
-      const pl = l ? players[l.player_id] : null;
-      if (l && pl) {
-        sfx("next");
-        speak(`Next up, ${pl.ign}.${pl.role ? ` ${pl.role}.` : ""} Base price ${lotBase(snap.auction, l)}.`);
-      }
+    const l = after ? snap.lots.find((x) => x.id === after) : null;
+    const pl = l ? players[l.player_id] : null;
+    if (l && pl && after !== before) {
+      sfx("next");
+      speak(`Next up, ${pl.ign}.${pl.role ? ` ${pl.role}.` : ""} Base price ${lotBase(snap.auction, l)}.`);
+    } else if (l && pl && after === before && l.draw_no !== p.lots.find((x) => x.id === after)?.draw_no) {
+      speak(`Bidding restarts for ${pl.ign}.`, { interrupt: true });
+      setPriceChangedAt(Date.now() + offset.current);
     }
     const top = snap.bids[0];
     if (top && top.id !== p.bids[0]?.id && top.lot_id === after) {
       sfx("bid");
       speak(`${teamName(top.team_id)}, ${top.amount}`, { interrupt: true });
-      setFlash((f) => f + 1);
+      setPriceChangedAt(Date.now() + offset.current);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snap]);
@@ -218,8 +237,15 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
     setBusy(false);
     if (error) {
       // Another captain got in first: show the new price right away.
+      const changed = /Price changed: (.+) now leads at (\d+)/.exec(error.message);
       const outbid = /Bid must be at least (\d+)/.exec(error.message);
-      toast.error(outbid ? `Outbid just now. Tap again for ${credits(Number(outbid[1]))}` : error.message);
+      toast.error(
+        changed
+          ? `${changed[1]} bid ${credits(Number(changed[2]))} just before you. Tap again if you still want in.`
+          : outbid
+            ? `Outbid just now. Tap again for ${credits(Number(outbid[1]))}`
+            : error.message,
+      );
       void refresh();
       return null;
     }
@@ -227,6 +253,9 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
     void refresh();
     return data;
   };
+
+  // Bids carry the price this screen showed, so two taps at once can never stack into a jump.
+  const bid = (amount: number) => lot && call("auction_place_bid", { p_lot_id: lot.id, p_amount: amount, p_seen_bid: lot.current_bid ?? -1 });
 
   const draw = useCallback(
     async (auto = false) => {
@@ -248,6 +277,7 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
   const myTeam = viewer.captainTeamId ? snap.teams.find((t) => t.team_id === viewer.captainTeamId) ?? null : null;
   const myPurse = a && myTeam ? teamPurse(a, myTeam) : null;
   const leader = lot?.current_team_id ?? null;
+  const frozen = now - priceChangedAt < FREEZE_MS;
 
   // The signed-in player's own lot, and an alert when they're drawn or sold.
   const myLot = viewer.playerId ? snap.lots.find((l) => l.player_id === viewer.playerId) ?? null : null;
@@ -271,8 +301,7 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
     () =>
       snap.lots
         .filter((l) => (l.status === "sold" || l.status === "unsold") && l.closed_at)
-        .sort((x, y) => (y.closed_at ?? "").localeCompare(x.closed_at ?? ""))
-        .slice(0, 12),
+        .sort((x, y) => (y.closed_at ?? "").localeCompare(x.closed_at ?? "")),
     [snap.lots],
   );
 
@@ -282,17 +311,37 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
   const inCountdown = !!lot && a.status === "live" && secs > 0 && secs <= a.countdown_seconds;
   const player = lot ? players[lot.player_id] : null;
   const showResult = result && !lot;
+  const lotBids = lot ? snap.bids.filter((b) => b.lot_id === lot.id) : [];
+  const leaderTeam = leader ? teams[leader] ?? null : null;
+  const chatEnabled = a.chat_enabled !== false;
+  const unread = chat.messages.filter((m) => m.created_at > chatSeenAt).length;
+  const openChat = (open: boolean) => {
+    setChatOpen(open);
+    setChatSeenAt(new Date(Date.now() + offset.current).toISOString());
+  };
+  const chatPanel = (props: { className?: string; readOnly?: boolean; autoFocus?: boolean }) => (
+    <ChatPanel
+      messages={chat.messages}
+      onSend={chat.send}
+      onDelete={(id) => void chat.remove(id)}
+      teams={teams}
+      signedIn={viewer.signedIn}
+      enabled={chatEnabled}
+      isAdmin={viewer.isAdmin}
+      {...props}
+    />
+  );
 
   return (
-    <div className={cn(screen ? "dark fixed inset-0 z-50 space-y-8 overflow-y-auto bg-background p-6 text-foreground sm:p-10" : "space-y-8", myTeam && !screen && "pb-24 lg:pb-0")}>
+    <div className={cn(screen ? "dark fixed inset-0 z-50 space-y-6 overflow-y-auto bg-background p-6 text-foreground sm:p-8" : "space-y-6", myTeam && !screen && "pb-24 lg:pb-0")}>
       {/* Header */}
-      <div className={cn("flex flex-wrap items-center gap-3", screen && "mb-6")}>
-        <h1 className={cn("leading-none", screen ? "text-5xl sm:text-6xl" : "text-4xl sm:text-5xl")}>{a.name}</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className={cn("leading-none", screen ? "text-5xl sm:text-6xl" : "text-3xl sm:text-5xl")}>{a.name}</h1>
         <StatusBadge status={a.status} />
         {a.is_practice && <Badge className="bg-info-soft text-info">PRACTICE</Badge>}
         <WatchingCount count={live.watching} big={screen} />
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          {a.voice_enabled && a.status !== "completed" && (
+          {a.status !== "completed" && (
             <Button variant={announcer.enabled ? "default" : "outline"} size="sm" onClick={announcer.toggle}>
               {announcer.enabled ? <Volume2 /> : <VolumeX />} {announcer.enabled ? "Sound on" : "Turn sound on"}
             </Button>
@@ -309,7 +358,7 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
               </Button>
             </>
           ) : (
-            <Button asChild variant="outline" size="sm">
+            <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
               <Link href={`/auction?id=${auctionId}&screen=1`}>
                 <Monitor /> Big screen
               </Link>
@@ -337,115 +386,100 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
         />
       )}
 
-      <div className={cn("grid gap-6", !screen && "lg:grid-cols-[1fr_340px]", screen && "xl:grid-cols-[1fr_380px]")}>
+      <div className={cn("grid gap-6", screen ? "xl:grid-cols-[minmax(0,1fr)_400px]" : "lg:grid-cols-[minmax(0,1fr)_360px]")}>
         <div className="min-w-0 space-y-3">
           {/* Stage */}
-          <section
-            className={cn(
-              "dark relative overflow-hidden rounded-xl bg-brand p-6 text-foreground sm:p-10",
-              inCountdown && "border-loss/70",
-            )}
-          >
-            <ReactionLayer floaters={live.floaters} />
+          <section className={cn("dark relative isolate overflow-hidden rounded-2xl bg-brand text-foreground shadow-xl", screen ? "min-h-[560px]" : "min-h-[380px] md:min-h-[460px]", inCountdown && "ring-2 ring-loss/70")}>
+            <TeamGlow color={leaderTeam ? teamColor(leaderTeam) : null} />
+            <ReactionLayer floaters={live.floaters} big={screen} />
             {lot && player ? (
-              <div className="grid gap-6 md:grid-cols-[auto_1fr]">
-                <PlayerPhoto player={player} big={screen} />
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <Badge variant="outline">
-                      {lot.set_name}
-                      {lot.round > 1 ? ` · round ${lot.round}` : ""}
-                    </Badge>
-                    {player.role && <Badge variant="secondary">{player.role}</Badge>}
-                    {player.verified && (
-                      <span className="inline-flex items-center gap-1 text-win">
-                        <BadgeCheck className="size-3.5" /> Verified
-                      </span>
-                    )}
-                    <span className="text-muted-foreground">Base {credits(lotBase(a, lot))}</span>
+              // Phones: who, then price + timer, then stats. Wider: price + timer in their own column.
+              <div
+                className={cn(
+                  "relative z-10 grid gap-4 p-5 sm:gap-6 sm:p-8",
+                  screen
+                    ? "xl:grid-cols-[minmax(0,1fr)_360px] xl:[grid-template-areas:'id_price'_'details_price']"
+                    : "md:grid-cols-[minmax(0,1fr)_270px] md:[grid-template-areas:'id_price'_'details_price']",
+                )}
+              >
+                <div className={cn("flex items-start gap-4 sm:gap-6", screen ? "xl:[grid-area:id]" : "md:[grid-area:id]")}>
+                  <PlayerTile player={player} big={screen} />
+                  <div className="min-w-0 flex-1 space-y-2 pt-1">
+                    <PlayerChips lot={lot} player={player} base={lotBase(a, lot)} />
+                    <h2 aria-label={player.ign} className={cn("font-heading leading-[0.88] font-extrabold break-words uppercase", screen ? "text-7xl sm:text-8xl" : "text-4xl sm:text-6xl xl:text-7xl")}>
+                      {reduceMotion ? (
+                        player.ign
+                      ) : (
+                        // Scrambles in each time a player is drawn (or re-drawn).
+                        <DecryptedText
+                          key={`${lot.id}:${lot.draw_no}`}
+                          text={player.ign}
+                          animateOn="view"
+                          sequential
+                          speed={60}
+                          characters="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&@"
+                          encryptedClassName="text-hot"
+                        />
+                      )}
+                    </h2>
+                    {player.lastTeam && <p className="text-sm text-white/60">Last played for {player.lastTeam}</p>}
+                    {player.bio && <p className="line-clamp-2 max-w-xl text-sm text-white/60 italic">“{player.bio}”</p>}
                   </div>
-                  <h2 aria-label={player.ign} className={cn("mt-2 font-heading leading-[0.9] font-extrabold uppercase", screen ? "text-7xl sm:text-8xl" : "text-5xl sm:text-7xl")}>
-                    {reduceMotion ? (
-                      player.ign
-                    ) : (
-                      // Scrambles in each time a player is drawn (or re-drawn).
-                      <DecryptedText
-                        key={`${lot.id}:${lot.draw_no}`}
-                        text={player.ign}
-                        animateOn="view"
-                        sequential
-                        speed={70}
-                        characters="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&@"
-                        encryptedClassName="text-hot"
-                      />
-                    )}
-                  </h2>
-                  {player.lastTeam && <p className="mt-1 text-sm text-muted-foreground">Last played for {player.lastTeam}</p>}
-                  {player.bio && <p className="mt-2 max-w-xl text-sm text-muted-foreground">“{player.bio}”</p>}
-                  <StatChips player={player} />
-                  <div className="mt-5 rounded-lg bg-white/5 p-3">
-                    <div className="mb-1.5 font-heading text-xs font-bold tracking-widest text-muted-foreground uppercase">Availability</div>
+                </div>
+                <div className={cn("flex flex-col gap-4 rounded-2xl bg-black/20 p-4 ring-1 ring-white/10", screen ? "xl:[grid-area:price]" : "md:[grid-area:price]")}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <PriceBlock price={lot.current_bid ?? lotBase(a, lot)} label={lot.current_bid != null ? "Current bid" : "Opening bid"} leader={leaderTeam} big={screen} />
+                    <TimerRing secs={secs} frac={Math.max(0, Math.min(1, remainingMs / (total * 1000)))} paused={a.status === "paused"} danger={inCountdown} big={screen} />
+                  </div>
+                  <BidLadder bids={lotBids} teams={teams} big={screen} />
+                </div>
+                <div className={cn("min-w-0 space-y-4", screen ? "xl:[grid-area:details]" : "md:[grid-area:details]")}>
+                  <StatRow player={player} />
+                  <div className="rounded-xl bg-white/5 p-3 ring-1 ring-white/5">
+                    <div className="mb-1.5 font-heading text-[11px] font-bold tracking-widest text-white/50 uppercase">Availability</div>
                     <AvailabilityBlock availability={player.availability} dates={matchDays.length ? { days: matchDays, answers: player.dates } : undefined} />
-                  </div>
-
-                  <div className="mt-6 flex flex-wrap items-end gap-6">
-                    <div>
-                      <div className="text-xs text-muted-foreground">{lot.current_bid != null ? "Current bid" : "Opening bid"}</div>
-                      <div
-                        key={flash}
-                        className={cn(
-                          "font-heading leading-none tabular animate-in fade-in zoom-in-105 duration-300",
-                          screen ? "text-8xl" : "text-6xl sm:text-7xl",
-                        )}
-                      >
-                        {credits(lot.current_bid ?? lotBase(a, lot))}
-                      </div>
-                      <div className="mt-1 flex items-center gap-2 text-sm">
-                        {leader ? (
-                          <>
-                            <TeamLogo team={teams[leader] ?? null} size="sm" />
-                            <span className="font-semibold">{teamName(leader)}</span>
-                            <span className="text-muted-foreground">leading</span>
-                          </>
-                        ) : (
-                          <span className="text-muted-foreground">No bids yet</span>
-                        )}
-                      </div>
-                    </div>
-                    <Countdown secs={secs} total={total} remainingMs={remainingMs} paused={a.status === "paused"} danger={inCountdown} big={screen} />
                   </div>
                 </div>
               </div>
-            ) : showResult ? (
-              <ResultBanner result={result} player={players[result.lot.player_id]} team={result.lot.sold_team_id ? teams[result.lot.sold_team_id] ?? null : null} big={screen} />
             ) : (
-              <IdleStage
-                status={a.status}
-                poolCount={pool.length}
-                unsoldCount={unsold.length}
-                isAdmin={viewer.isAdmin}
-                countdown={a.status === "setup" && a.starts_at ? <StartCountdown startsAt={a.starts_at} now={now} title={a.name} big={screen} /> : null}
-              />
+              <div className={cn("relative z-10 grid place-items-center", screen ? "min-h-[560px]" : "min-h-[380px] md:min-h-[460px]")}>
+                <IdleStage
+                  status={a.status}
+                  poolCount={pool.length}
+                  unsoldCount={unsold.length}
+                  isAdmin={viewer.isAdmin}
+                  countdown={a.status === "setup" && a.starts_at ? <StartCountdown startsAt={a.starts_at} now={now} title={a.name} big={screen} /> : null}
+                />
+              </div>
             )}
 
             {inCountdown && (
-              <div className="pointer-events-none absolute inset-0 grid place-items-center bg-background/30">
-                <span key={secs} className="font-heading text-[10rem] leading-none text-loss animate-in zoom-in-125 fade-in duration-300 sm:text-[14rem]">
+              <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center bg-background/25">
+                <span key={secs} className="font-heading text-[10rem] leading-none font-extrabold text-loss drop-shadow-[0_0_40px_rgba(255,45,75,0.6)] animate-in zoom-in-150 fade-in duration-300 sm:text-[14rem]">
                   {secs}
                 </span>
               </div>
             )}
+            <AnimatePresence>
+              {showResult && (
+                <SoldOverlay
+                  key={result.at}
+                  kind={result.kind}
+                  player={players[result.lot.player_id]}
+                  team={result.lot.sold_team_id ? teams[result.lot.sold_team_id] ?? null : null}
+                  price={result.lot.sold_price ?? 0}
+                  big={screen}
+                />
+              )}
+            </AnimatePresence>
           </section>
           {!screen && a.status !== "completed" && (
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="text-xs text-muted-foreground">React live: everyone in the room sees it.</span>
-              <ReactionBar onReact={live.react} canReact={viewer.signedIn} />
-            </div>
+            <ReactionBar onReact={live.react} canReact={viewer.signedIn} hype={live.hype} crowdOn={crowdOn} onCrowdToggle={() => crowdSounds.set(!crowdOn)} />
           )}
         </div>
 
         {/* Side column */}
-        <aside className="space-y-4">
+        <aside className="min-w-0 space-y-4">
           {myTeam && myPurse && (
             <CaptainPanel
               team={teams[myTeam.team_id] ?? null}
@@ -454,12 +488,27 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
               leading={leader === myTeam.team_id}
               canBid={!!lot && a.status === "live" && !expired}
               busy={busy}
-              onBid={(amount) => lot && call("auction_place_bid", { p_lot_id: lot.id, p_amount: amount })}
+              frozen={frozen}
+              onBid={(amount) => void bid(amount)}
             />
           )}
-          {viewer.isAdmin && (
+          {viewer.isAdmin && !screen && (
             <div className="rounded-xl border bg-card p-4">
-              <div className="mb-3 text-xs text-muted-foreground">Auctioneer</div>
+              <div className="mb-3 flex items-center justify-between">
+                <span className="font-heading text-base font-bold tracking-wide uppercase">Auctioneer</span>
+                <button
+                  type="button"
+                  className="rounded-full border px-2.5 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-accent"
+                  onClick={async () => {
+                    const { error } = await sb.from("auctions").update({ chat_enabled: !chatEnabled }).eq("id", a.id);
+                    if (error) toast.error(error.message);
+                    else toast.success(chatEnabled ? "Chat turned off" : "Chat turned on");
+                    void refresh();
+                  }}
+                >
+                  Chat {chatEnabled ? "on" : "off"}
+                </button>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 {!lot && a.status !== "completed" && pool.length > 0 && (
                   <Button className="col-span-2" size="lg" disabled={busy} onClick={() => void draw()}>
@@ -483,14 +532,29 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
                       disabled={busy || !lot.current_team_id}
                       onClick={() => confirm(`Sell ${player?.ign} now to ${teamName(lot.current_team_id)} for ${lot.current_bid}?`) && call("auction_close_lot", { p_lot_id: lot.id, p_force: "sell" })}
                     >
-                      <Gavel /> Sell now
+                      Sell now
+                    </Button>
+                    <Button variant="ghost" disabled={busy} onClick={() => confirm(`Mark ${player?.ign} unsold?`) && call("auction_close_lot", { p_lot_id: lot.id, p_force: "unsold" })}>
+                      Mark unsold
+                    </Button>
+                    <Button
+                      variant="outline"
+                      disabled={busy}
+                      title="Clears this player's bids and starts their timer again"
+                      onClick={() =>
+                        confirm(`Restart bidding for ${player?.ign}? Their bids are cleared and the timer starts again. Nothing else changes.`) &&
+                        call("auction_restart_lot", { p_lot_id: lot.id }, `Bidding restarted for ${player?.ign}`)
+                      }
+                    >
+                      <RotateCcw /> Restart player
                     </Button>
                     <Button
                       variant="ghost"
                       disabled={busy}
-                      onClick={() => confirm(`Mark ${player?.ign} unsold?`) && call("auction_close_lot", { p_lot_id: lot.id, p_force: "unsold" })}
+                      title="Takes this player off the block; they can be drawn again later"
+                      onClick={() => confirm(`Send ${player?.ign} back to the pool? Their bids are cleared.`) && call("auction_return_lot", { p_lot_id: lot.id }, `${player?.ign} is back in the pool`)}
                     >
-                      Mark unsold
+                      Back to pool
                     </Button>
                   </>
                 )}
@@ -528,10 +592,7 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
                       variant="outline"
                       size="sm"
                       disabled={busy}
-                      onClick={() =>
-                        confirm("Stop the auction? The player on the block goes back to the pool. Results so far are kept.") &&
-                        call("auction_stop", { p_auction_id: a.id }, "Auction stopped")
-                      }
+                      onClick={() => confirm("Stop the auction? The player on the block goes back to the pool. Results so far are kept.") && call("auction_stop", { p_auction_id: a.id }, "Auction stopped")}
                     >
                       <Square /> Stop auction
                     </Button>
@@ -552,7 +613,7 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
               )}
               <p className="mt-3 text-[11px] text-muted-foreground">
                 {a.auto_next_seconds > 0 ? `Next player is drawn automatically ${a.auto_next_seconds}s after each result. ` : ""}
-                Settings, captains and the final roster step are in{" "}
+                Re-auction any result below, or pick the next player from the scouting board. Settings, captains, reopening and the roster step are in{" "}
                 <Link href={`/admin/auction/${a.id}`} className="text-foreground underline underline-offset-2">
                   Admin → Auction
                 </Link>
@@ -560,16 +621,25 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
               </p>
             </div>
           )}
-          {!viewer.signedIn && a.status !== "completed" && (
+          {!viewer.signedIn && a.status !== "completed" && !screen && (
             <p className="rounded-xl border border-dashed p-3 text-xs text-muted-foreground">
-              Captain?{" "}
+              Captain or player?{" "}
               <Link href={`/login?next=${encodeURIComponent(`/auction?id=${auctionId}`)}`} className="text-foreground underline underline-offset-2">
                 Sign in
               </Link>{" "}
-              to bid for your team.
+              to bid, react and chat.
             </p>
           )}
-          <BidFeed snap={snap} lotId={lot?.id ?? null} teams={teams} players={players} recentClosed={recentClosed} />
+          <ResultsList
+            results={recentClosed}
+            teams={teams}
+            players={players}
+            canEdit={viewer.isAdmin && !screen && a.status !== "completed" && !lot}
+            busy={busy}
+            onRedraw={(l) => confirm(`Put ${ign(l.player_id)} on the block again now? Their previous result is cleared.`) && call("auction_redraw_lot", { p_lot_id: l.id })}
+            onReturn={(l) => confirm(`Send ${ign(l.player_id)} back to the pool? Their result is cleared.`) && call("auction_return_lot", { p_lot_id: l.id }, `${ign(l.player_id)} is back in the pool`)}
+          />
+          {chatPanel({ className: cn("hidden lg:flex", screen ? "h-[520px]" : "h-[440px]"), readOnly: screen })}
         </aside>
       </div>
 
@@ -582,372 +652,46 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
           next={bidOptions(a, lot, 1)[0]}
           leading={leader === myTeam.team_id}
           disabled={busy || expired || myPurse.slotsLeft === 0 || bidOptions(a, lot, 1)[0] > myPurse.maxBid}
-          onBid={(amount) => call("auction_place_bid", { p_lot_id: lot.id, p_amount: amount })}
+          frozen={frozen}
+          onBid={(amount) => void bid(amount)}
         />
+      )}
+      {!screen && (
+        <ChatSheet unread={unread} open={chatOpen} onOpenChange={openChat} raised={!!(myTeam && lot && a.status === "live")}>
+          {chatPanel({ className: "min-h-0 flex-1 border-0", autoFocus: true })}
+        </ChatSheet>
       )}
 
       {/* Teams */}
-      <section className={cn(screen && "mt-6")}>
+      <section>
         <h2 className="mb-3 font-heading text-xl font-bold tracking-wide uppercase">Teams</h2>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {snap.teams.map((t) => {
-            const team = teams[t.team_id] ?? null;
-            const purse = teamPurse(a, t);
-            const squad = snap.lots.filter((l) => l.status === "sold" && l.sold_team_id === t.team_id).sort((x, y) => (x.closed_at ?? "").localeCompare(y.closed_at ?? ""));
-            return (
-              <div
-                key={t.team_id}
-                className={cn("overflow-hidden rounded-lg border border-t-[5px] bg-card p-4 transition", leader === t.team_id && "ring-2 ring-hot")}
-                style={{ borderTopColor: teamColor(team) }}
-              >
-                <div className="flex items-center gap-3">
-                  <TeamLogo team={team} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-semibold">{team?.name}</div>
-                    <div className="truncate text-xs text-muted-foreground">Captain: {t.captain_player_id ? ign(t.captain_player_id) : "TBD"}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xl font-medium tabular">{credits(purse.left)}</div>
-                    <div className="text-[11px] text-muted-foreground">left</div>
-                  </div>
-                </div>
-                <div className="mt-4 h-1 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full rounded-full bg-foreground/70 transition-[width] duration-500" style={{ width: `${Math.max(0, (purse.left / purse.total) * 100)}%` }} />
-                </div>
-                <div className="mt-2 flex justify-between text-[11px] text-muted-foreground">
-                  <span>
-                    {purse.bought}/{a.max_buys} bought
-                  </span>
-                  <span>Max bid {credits(Math.max(purse.maxBid, 0))}</span>
-                </div>
-                <ul className="mt-3 space-y-1 text-sm">
-                  {squad.map((l) => (
-                    <li key={l.id} className="flex justify-between gap-2">
-                      <span className="truncate">{ign(l.player_id)}</span>
-                      <span className="tabular text-muted-foreground">{credits(l.sold_price ?? 0)}</span>
-                    </li>
-                  ))}
-                  {squad.length === 0 && <li className="text-xs text-muted-foreground">No players yet</li>}
-                </ul>
-              </div>
-            );
-          })}
+        <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 xl:grid-cols-4">
+          {snap.teams.map((t) => (
+            <TeamCard
+              key={t.team_id}
+              team={teams[t.team_id] ?? null}
+              captain={t.captain_player_id ? ign(t.captain_player_id) : "TBD"}
+              purse={teamPurse(a, t)}
+              maxBuys={a.max_buys}
+              squad={snap.lots.filter((l) => l.status === "sold" && l.sold_team_id === t.team_id).sort((x, y) => (x.closed_at ?? "").localeCompare(y.closed_at ?? ""))}
+              leading={leader === t.team_id}
+              ign={ign}
+            />
+          ))}
         </div>
       </section>
 
       {/* Scouting board: availability + form for everyone still to come */}
-      {!screen && <ScoutingBoard auctionId={auctionId} lots={snap.lots} players={players} matchDays={matchDays} canShortlist={!!viewer.captainTeamId} />}
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-
-function StatusBadge({ status }: { status: string }) {
-  if (status === "live")
-    return (
-      <Badge className="gap-1.5 bg-hot font-heading font-bold tracking-widest whitespace-nowrap text-white">
-        <span className="size-2 animate-pulse rounded-full bg-white" />
-        <ShinyText text="LIVE" color="#ffffff" shineColor="#ffd84d" speed={2} />
-      </Badge>
-    );
-  if (status === "paused") return <Badge variant="secondary">Paused</Badge>;
-  if (status === "completed") return <Badge variant="secondary">Completed</Badge>;
-  return <Badge variant="outline">Starting soon</Badge>;
-}
-
-function PlayerPhoto({ player, big }: { player: RoomPlayer; big: boolean }) {
-  const size = big ? "size-56 sm:size-64" : "size-40 sm:size-48";
-  return player.photo ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={player.photo} alt={player.ign} className={cn(size, "rounded-2xl object-cover")} />
-  ) : (
-    <div className={cn(size, "grid place-items-center rounded-2xl bg-muted font-heading text-7xl text-muted-foreground")}>
-      {player.ign.slice(0, 2).toUpperCase()}
-    </div>
-  );
-}
-
-function StatChips({ player }: { player: RoomPlayer }) {
-  if (!player.stats) return <p className="mt-3 text-sm text-muted-foreground">New to the league: no stats yet.</p>;
-  const s = player.stats;
-  const chips = [
-    ["Games", s.games],
-    ["Kills", s.kills],
-    ["Revives", s.revives],
-    ["K/G", s.avgKills.toFixed(1)],
-    ["MVP", Math.round(s.mvp)],
-    ["POTM", s.potm],
-  ];
-  return (
-    <dl className="mt-6 grid grid-cols-3 gap-x-6 gap-y-4 sm:grid-cols-6">
-      {chips.map(([label, value]) => (
-        <div key={label}>
-          <dd className="text-lg font-medium tabular">{value}</dd>
-          <dt className="text-[11px] text-muted-foreground">{label}</dt>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-function Countdown({ secs, total, remainingMs, paused, danger, big }: { secs: number; total: number; remainingMs: number; paused: boolean; danger: boolean; big: boolean }) {
-  const r = 44;
-  const c = 2 * Math.PI * r;
-  const frac = Math.max(0, Math.min(1, remainingMs / (total * 1000)));
-  return (
-    <div className={cn("relative", big ? "size-40" : "size-28")}>
-      <svg viewBox="0 0 100 100" className="size-full -rotate-90">
-        <circle cx="50" cy="50" r={r} className="fill-none stroke-muted" strokeWidth="8" />
-        <circle
-          cx="50"
-          cy="50"
-          r={r}
-          className={cn("fill-none transition-[stroke-dashoffset] duration-100 ease-linear", danger ? "stroke-loss" : "stroke-foreground")}
-          strokeWidth="8"
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={c * (1 - frac)}
+      {!screen && (
+        <ScoutingBoard
+          auctionId={auctionId}
+          lots={snap.lots}
+          players={players}
+          matchDays={matchDays}
+          canShortlist={!!viewer.captainTeamId}
+          onDraw={viewer.isAdmin && !lot && a.status !== "completed" ? (l) => call("auction_redraw_lot", { p_lot_id: l.id }) : undefined}
         />
-      </svg>
-      <div className="absolute inset-0 grid place-items-center text-center">
-        <div>
-          <div className={cn("font-medium tabular", big ? "text-5xl" : "text-3xl", danger && "text-loss")}>{paused ? "II" : secs}</div>
-          <div className="text-[11px] text-muted-foreground">{paused ? "paused" : "seconds"}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CaptainPanel({
-  team,
-  purse,
-  options,
-  leading,
-  canBid,
-  busy,
-  onBid,
-}: {
-  team: Team | null;
-  purse: ReturnType<typeof teamPurse>;
-  options: number[];
-  leading: boolean;
-  canBid: boolean;
-  busy: boolean;
-  onBid: (amount: number) => void;
-}) {
-  const reason = !canBid
-    ? "Waiting for the next player"
-    : purse.slotsLeft === 0
-      ? "Your squad is full"
-      : leading
-        ? "You have the highest bid"
-        : options[0] > purse.maxBid
-          ? `Over your max bid (${credits(purse.maxBid)})`
-          : null;
-  return (
-    <div className="rounded-xl border border-foreground/20 bg-card p-5">
-      <div className="flex items-center gap-2">
-        <TeamLogo team={team} size="sm" />
-        <div className="flex-1">
-          <div className="text-xs text-muted-foreground">Captain&apos;s room</div>
-          <div className="font-semibold">{team?.name}</div>
-        </div>
-      </div>
-      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-        <div>
-          <div className="text-xl font-medium tabular">{credits(purse.left)}</div>
-          <div className="text-[11px] text-muted-foreground">Purse left</div>
-        </div>
-        <div>
-          <div className="text-xl font-medium tabular">{purse.slotsLeft}</div>
-          <div className="text-[11px] text-muted-foreground">Slots left</div>
-        </div>
-        <div>
-          <div className="text-xl font-medium tabular">{credits(Math.max(purse.maxBid, 0))}</div>
-          <div className="text-[11px] text-muted-foreground">Max bid</div>
-        </div>
-      </div>
-      {options.length > 0 && (
-        <ClickSpark sparkColor={["#ff2d4b", "#fbbf24", "#ffffff"]} sparkCount={10} sparkRadius={26} className="mt-4 grid h-auto gap-2">
-          <Button size="lg" className="h-14 text-lg" disabled={busy || !!reason} onClick={() => onBid(options[0])}>
-            <Gavel /> Bid {credits(options[0])}
-          </Button>
-          <div className="grid grid-cols-2 gap-2">
-            {options.slice(1).map((amt) => (
-              <Button key={amt} variant="outline" disabled={busy || !!reason || amt > purse.maxBid} onClick={() => onBid(amt)}>
-                {credits(amt)}
-              </Button>
-            ))}
-          </div>
-        </ClickSpark>
-      )}
-      {reason && <p className="mt-2 text-center text-xs text-muted-foreground">{reason}</p>}
-    </div>
-  );
-}
-
-function MobileBidBar({
-  price,
-  secs,
-  danger,
-  next,
-  leading,
-  disabled,
-  onBid,
-}: {
-  price: number;
-  secs: number;
-  danger: boolean;
-  next: number;
-  leading: boolean;
-  disabled: boolean;
-  onBid: (amount: number) => void;
-}) {
-  return (
-    <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur lg:hidden">
-      <div className="mx-auto flex max-w-xl items-center gap-3">
-        <div className="min-w-0">
-          <div className="text-[11px] text-muted-foreground">{leading ? "You lead at" : "Current"}</div>
-          <div className="text-2xl font-medium tabular">{credits(price)}</div>
-        </div>
-        <div className={cn("text-2xl font-medium tabular", danger && "text-loss")}>{secs}s</div>
-        <ClickSpark sparkColor={["#ff2d4b", "#fbbf24"]} sparkCount={10} sparkRadius={24} className="ml-auto h-auto w-auto flex-1">
-          <Button size="lg" className="h-12 w-full text-base" disabled={disabled || leading} onClick={() => onBid(next)}>
-            <Gavel /> {leading ? "Leading" : `Bid ${credits(next)}`}
-          </Button>
-        </ClickSpark>
-      </div>
-    </div>
-  );
-}
-
-function BidFeed({
-  snap,
-  lotId,
-  teams,
-  players,
-  recentClosed,
-}: {
-  snap: AuctionSnapshot;
-  lotId: string | null;
-  teams: Record<string, Team>;
-  players: Record<string, RoomPlayer>;
-  recentClosed: AuctionLot[];
-}) {
-  const bids = lotId ? snap.bids.filter((b) => b.lot_id === lotId).slice(0, 10) : [];
-  return (
-    <div className="rounded-xl border bg-card p-4">
-      {lotId && (
-        <>
-          <div className="mb-2 text-xs text-muted-foreground">Bids</div>
-          {bids.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No bids yet.</p>
-          ) : (
-            <ol className="space-y-1.5">
-              {bids.map((b, i) => (
-                <li key={b.id} className={cn("flex items-center gap-2 text-sm", i === 0 ? "font-semibold" : "text-muted-foreground")}>
-                  <TeamLogo team={teams[b.team_id] ?? null} size="xs" />
-                  <span className="flex-1 truncate">{teams[b.team_id]?.name}</span>
-                  <span className="tabular">{credits(b.amount)}</span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </>
-      )}
-      <div className={cn("mb-2 text-xs text-muted-foreground", lotId && "mt-4 border-t pt-3")}>Results</div>
-      {recentClosed.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nothing sold yet.</p>
-      ) : (
-        <ol className="space-y-1.5 text-sm">
-          {recentClosed.map((l) => (
-            <li key={l.id} className="flex items-center gap-2">
-              <span className="flex-1 truncate">{players[l.player_id]?.ign}</span>
-              {l.status === "sold" ? (
-                <>
-                  <span className="truncate text-xs text-muted-foreground">{teams[l.sold_team_id ?? ""]?.tag}</span>
-                  <span className="tabular font-medium text-win">{credits(l.sold_price ?? 0)}</span>
-                </>
-              ) : (
-                <span className="text-xs text-loss">unsold</span>
-              )}
-            </li>
-          ))}
-        </ol>
       )}
     </div>
   );
 }
-
-function ResultBanner({ result, player, team, big }: { result: Result; player: RoomPlayer | undefined; team: Team | null; big: boolean }) {
-  const sold = result.kind === "sold";
-  return (
-    <div className="grid place-items-center py-10 text-center animate-in zoom-in-95 fade-in duration-500">
-      <div
-        className={cn(
-          "rotate-[-4deg] rounded-lg border-2 px-6 py-1 font-heading italic",
-          sold ? "border-win text-win" : "border-muted-foreground text-muted-foreground",
-          big ? "text-7xl" : "text-5xl",
-        )}
-      >
-        {sold ? "Sold!" : "Unsold"}
-      </div>
-      <div className={cn("mt-6 font-heading", big ? "text-5xl" : "text-3xl")}>{player?.ign}</div>
-      {sold && (
-        <div className="mt-3 flex items-center gap-3 text-xl">
-          <TeamLogo team={team} size="md" />
-          <span className="font-semibold">{team?.name}</span>
-          <span className="font-heading text-4xl tabular">{credits(result.lot.sold_price ?? 0)}</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function IdleStage({
-  status,
-  poolCount,
-  unsoldCount,
-  isAdmin,
-  countdown,
-}: {
-  status: string;
-  poolCount: number;
-  unsoldCount: number;
-  isAdmin: boolean;
-  countdown: React.ReactNode;
-}) {
-  if (countdown)
-    return (
-      <>
-        {countdown}
-        {isAdmin && <p className="-mt-6 pb-4 text-center text-xs text-muted-foreground">Draw the first player from the auctioneer panel when you&apos;re ready.</p>}
-      </>
-    );
-  const title =
-    status === "completed"
-      ? "The auction is over"
-      : status === "setup"
-        ? "The auction starts soon"
-        : poolCount > 0
-          ? "Next player coming up…"
-          : unsoldCount > 0
-            ? "Pool finished. Unsold players may get another round."
-            : "Every player has been auctioned";
-  return (
-    <div className="grid place-items-center py-16 text-center">
-      <Gavel className="size-10 text-muted-foreground" />
-      <p className="mt-4 font-heading text-2xl">{title}</p>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {status === "completed"
-          ? "See the final squads below."
-          : isAdmin
-            ? "Use the auctioneer panel to draw the next player at random."
-            : `${poolCount} player${poolCount === 1 ? "" : "s"} waiting in the pool. Turn sound on to hear the auctioneer.`}
-      </p>
-    </div>
-  );
-}
-

@@ -148,8 +148,18 @@ export async function updateTeam(teamId: string, fd: FormData) {
 
 export async function deleteTeam(teamId: string) {
   return run(async (db) => {
+    // Say exactly what still uses the team instead of a generic "still in use".
+    const idx = buildIndex(await fetchLeagueData());
+    const team = idx.teamById.get(teamId);
+    const name = team?.name ?? "This team";
+    if (idx.views.some((v) => v.completed && (v.fixture.team_a_id === teamId || v.fixture.team_b_id === teamId)))
+      throw new UserError(`${name} has played games, so it's kept for the record.`);
+    const seasons = idx.data.seasonTeams.filter((x) => x.team_id === teamId).map((x) => idx.seasonById.get(x.season_id)?.name ?? "a season");
+    if (seasons.length) throw new UserError(`${name} is still in ${seasons.join(", ")}. Remove it there first (Seasons → Teams & rosters).`);
+    const auctions = must(await db.from("auction_teams").select("auction_id, auctions(name)").eq("team_id", teamId)) as unknown as { auctions: { name: string } | null }[];
+    if (auctions.length) throw new UserError(`${name} is in the auction "${auctions[0].auctions?.name ?? "auction"}". Remove it there first (Admin → Auction).`);
     must(await db.from("teams").delete().eq("id", teamId));
-    return "Team deleted";
+    return `${name} deleted`;
   });
 }
 
@@ -245,15 +255,51 @@ export async function addSeasonTeam(seasonId: string, fd: FormData) {
   });
 }
 
+/**
+ * Takes a team out of a season. Its unplayed games go with it (every other game and its date stays);
+ * a team that already has results this season can't be removed. If the season then has too few teams
+ * for its playoff format, the (unplayed) playoff series are dropped too.
+ */
 export async function removeSeasonTeam(seasonId: string, teamId: string) {
   return run(async (db) => {
-    const fixtures = must(
-      await db.from("fixtures").select("id").eq("season_id", seasonId).or(`team_a_id.eq.${teamId},team_b_id.eq.${teamId}`),
-    );
-    if (fixtures.length) throw new UserError("This team already has games this season. Regenerate the schedule without it first.");
+    const idx = buildIndex(await fetchLeagueData());
+    const team = idx.teamById.get(teamId);
+    const mine = idx.views.filter((v) => v.season.id === seasonId && (v.fixture.team_a_id === teamId || v.fixture.team_b_id === teamId));
+    if (mine.some((v) => v.completed)) throw new UserError(`${team?.name ?? "This team"} already has results this season, so it stays in it.`);
+
+    // Its league and practice games go; playoff series it was seeded into just lose it.
+    const own = [...new Set(mine.filter((v) => v.fixture.stage === "league" || v.fixture.stage === "practice").map((v) => v.fixture.id))];
+    const games = mine.filter((v) => own.includes(v.fixture.id)).length;
+    if (own.length) must(await db.from("fixtures").delete().in("id", own));
+    for (const f of idx.data.fixtures.filter((x) => x.season_id === seasonId && x.stage !== "league" && x.stage !== "practice")) {
+      if (f.team_a_id === teamId) must(await db.from("fixtures").update({ team_a_id: null }).eq("id", f.id));
+      if (f.team_b_id === teamId) must(await db.from("fixtures").update({ team_b_id: null }).eq("id", f.id));
+    }
     must(await db.from("roster_entries").delete().eq("season_id", seasonId).eq("team_id", teamId));
     must(await db.from("season_teams").delete().eq("season_id", seasonId).eq("team_id", teamId));
-    return "Team removed from the season";
+
+    let playoffs = "";
+    const season = idx.seasonById.get(seasonId);
+    const left = teamsOf(idx, seasonId).filter((t) => t.id !== teamId).length;
+    const playoffFixtures = idx.data.fixtures.filter((f) => f.season_id === seasonId && f.type === "official" && f.stage !== "league");
+    if (playoffFixtures.length && !playoffsActive(playoffFormat(season), left)) {
+      must(await db.from("fixtures").delete().in("id", playoffFixtures.map((f) => f.id)));
+      playoffs = ` The playoff format needs more teams, so its playoff games were removed; pick another format on the Schedule tab.`;
+    } else if (playoffFixtures.length) {
+      await syncPlayoffs(db, seasonId);
+    }
+    return `${team?.name ?? "Team"} removed from the season${games ? ` with its ${games} unplayed game${games === 1 ? "" : "s"}` : ""}. Other games and their dates are unchanged.${playoffs}`;
+  });
+}
+
+/** Deletes a season's whole official schedule (fixtures, games, dates) so it can be generated again. */
+export async function deleteSchedule(seasonId: string) {
+  return run(async (db) => {
+    const idx = buildIndex(await fetchLeagueData());
+    const games = idx.views.filter((v) => v.season.id === seasonId && v.fixture.type === "official");
+    if (games.some((v) => v.completed)) throw new UserError("Results have been entered for this season, so its schedule stays.");
+    must(await db.rpc("replace_official_schedule", { p_season_id: seasonId, p_fixtures: [] }));
+    return `Schedule deleted (${games.length} games). Teams, rosters and match days are unchanged; generate fixtures again when you're ready.`;
   });
 }
 

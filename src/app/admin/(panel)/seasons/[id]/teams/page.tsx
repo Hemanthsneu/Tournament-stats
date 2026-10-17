@@ -65,6 +65,8 @@ export default async function SeasonTeamsAdmin({ params }: PageProps<"/admin/sea
         {teams.map((team) => {
           const roster = teamRoster(idx, id, team.id);
           const active = roster.filter((r) => !r.entry.left_on);
+          const teamGames = idx.views.filter((v) => v.season.id === id && (v.fixture.team_a_id === team.id || v.fixture.team_b_id === team.id));
+          const unplayed = teamGames.filter((v) => v.fixture.stage === "league" || v.fixture.stage === "practice");
           return (
             <section key={team.id} className="rounded-xl border bg-card">
               <div className="flex items-center gap-3 border-b p-4">
@@ -75,7 +77,11 @@ export default async function SeasonTeamsAdmin({ params }: PageProps<"/admin/sea
                 </div>
                 <ActionButton
                   action={removeSeasonTeam.bind(null, id, team.id)}
-                  confirm={`Remove ${team.name} from this season?`}
+                  confirm={
+                    teamGames.some((g) => g.completed)
+                      ? `${team.name} already has results this season, so it can't be removed.`
+                      : `Remove ${team.name} from this season?${unplayed.length ? ` Its ${unplayed.length} unplayed game${unplayed.length === 1 ? " is" : "s are"} deleted too; every other game and its date stays.` : ""} Its roster for this season is cleared.`
+                  }
                   variant="ghost"
                   className="text-loss"
                 >

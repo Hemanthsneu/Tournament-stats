@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ActionForm } from "@/components/admin/action-form";
+import { ActionButton, ActionForm } from "@/components/admin/action-form";
 import { FixturePlanner, type PlannerGame, type PlannerTeam } from "@/components/admin/fixture-planner";
 import { PlayoffFormatChoice } from "@/components/admin/playoff-format-choice";
 import { Field, NativeSelect, Panel, TextField } from "@/components/admin/fields";
@@ -17,7 +17,7 @@ import { teamColor } from "@/lib/team-colors";
 import { cn } from "@/lib/utils";
 import { dateKey, fmtLongDate, toZonedInput, tzLabel } from "@/lib/time";
 import { STAGE_LABELS, type Team } from "@/lib/types";
-import { assignTimes, generateOfficialSchedule, saveGamePlan, setPlayoffFormat, updateGame } from "../../../../actions";
+import { assignTimes, deleteSchedule, generateOfficialSchedule, saveGamePlan, setPlayoffFormat, updateGame } from "../../../../actions";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -142,6 +142,19 @@ export default async function ScheduleAdmin({ params }: PageProps<"/admin/season
                 <p className="w-full text-xs text-muted-foreground">Playoffs need at least 4 teams.</p>
               )}
             </ActionForm>
+          )}
+          {games.length > 0 && !locked && (
+            <div className="mt-4 flex flex-wrap items-center gap-3 border-t pt-4">
+              <ActionButton
+                action={deleteSchedule.bind(null, id)}
+                confirm={`Delete this season's whole schedule (${games.length} games, with any dates you've set)? Teams, rosters and match days stay. You can generate fixtures again afterwards.`}
+                variant="ghost"
+                className="text-loss"
+              >
+                Delete schedule
+              </ActionButton>
+              <span className="text-xs text-muted-foreground">Clears every game so you can change teams or maps and generate again.</span>
+            </div>
           )}
           {calendar && games.length > 0 && !playoffLocked && (
             <ActionForm

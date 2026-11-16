@@ -1,4 +1,5 @@
 import type { FixtureType, Player, PlayerGameStat, Season, Team } from "../types";
+import { killBonus } from "./adjustments";
 import {
   sortedSeasons,
   teamFinish,
@@ -72,7 +73,14 @@ export function playerLeaderboard(idx: LeagueIndex, games: GameView[]): PlayerAg
     }
   }
 
+  const hasOfficial = new Set<string>();
+  for (const g of completed) {
+    if (g.fixture.type !== "official") continue;
+    for (const stat of [...g.statsA, ...g.statsB]) hasOfficial.add(stat.player_id);
+  }
+
   return [...aggs.values()].map(({ lastTeamId, ...agg }) => {
+    if (hasOfficial.has(agg.player.id)) agg.kills += killBonus(agg.player.ign);
     const teamGames = teamGameCount.get(lastTeamId) ?? agg.games;
     return {
       ...agg,
@@ -253,7 +261,9 @@ export function playerCareer(
     player,
     totals: {
       games: log.length,
-      kills: log.reduce((a, r) => a + r.stat.kills, 0),
+      kills:
+        log.reduce((a, r) => a + r.stat.kills, 0) +
+        (log.some((r) => r.view.fixture.type === "official") ? killBonus(player.ign) : 0),
       revives: log.reduce((a, r) => a + r.stat.revives, 0),
       mvp: log.reduce((a, r) => a + r.mvp, 0),
       potm: log.filter((r) => r.isPotm).length,

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "@/components/icons";
+import { ChampionsShowcase } from "@/components/champions";
 import { GameCard } from "@/components/game-card";
 import { HeroCarousel, type HeroSlide, type TeamLite } from "@/components/home/hero-carousel";
 import { PromoBanners, type Promo } from "@/components/home/promo-banners";
@@ -24,10 +25,12 @@ import {
   upNext,
   type GameView,
 } from "@/lib/engine/league";
+import { seasonHonours } from "@/lib/engine/honours";
 import { matchStories } from "@/lib/engine/insights";
 import { playerLeaderboard, rankBy } from "@/lib/engine/players";
 import { signed } from "@/lib/format";
 import { playoffFormat } from "@/lib/playoff-formats";
+import { showcaseProps } from "@/lib/honours-view";
 import { teamColor } from "@/lib/team-colors";
 import { fmtDateTime } from "@/lib/time";
 import type { Team } from "@/lib/types";
@@ -218,6 +221,8 @@ export default async function SeasonHome({ params }: PageProps<"/s/[season]">) {
   );
 
   const words = [season.name, "WOW mode", "Winner winner chicken dinner"];
+  const profiles = profileMap(community);
+  const honours = seasonHonours(idx, season.id);
 
   return (
     <div className="space-y-14">
@@ -225,6 +230,8 @@ export default async function SeasonHome({ params }: PageProps<"/s/[season]">) {
         <HeroCarousel slides={slides} />
         <TeamMarquee teams={teams.map((t) => lite(t)!)} words={words} />
       </div>
+
+      {honours && <ChampionsShowcase {...showcaseProps(honours, (id) => profiles.get(id)?.photo_url ?? idx.playerById.get(id)?.photo_url ?? null)} />}
 
       <Reveal>
         <PromoBanners promos={promos} />

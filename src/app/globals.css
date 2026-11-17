@@ -236,3 +236,68 @@
     transform: translateX(-50%);
   }
 }
+
+/* Champion / runner-up tags: metallic fill with a slow sweep of light. */
+@keyframes honour-sweep {
+  from {
+    background-position: 160% 0;
+  }
+  to {
+    background-position: -60% 0;
+  }
+}
+.honour-gold {
+  background: linear-gradient(110deg, #f2b705 0%, #f2b705 38%, #fff1b8 50%, #f2b705 62%, #e0a300 100%);
+  background-size: 260% 100%;
+  animation: honour-sweep 3.6s ease-in-out infinite;
+}
+.honour-silver {
+  background: linear-gradient(110deg, #c3ccd9 0%, #c3ccd9 38%, #f4f7fb 50%, #c3ccd9 62%, #a9b4c4 100%);
+  background-size: 260% 100%;
+  animation: honour-sweep 4.8s ease-in-out infinite;
+}
+
+/* Champions showcase: rotating sunburst, floating trophy, falling ticker tape. */
+@keyframes champ-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes champ-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+@keyframes champ-fall {
+  from {
+    transform: translate3d(0, -40px, 0) rotate(0deg);
+  }
+  to {
+    transform: translate3d(var(--drift, 0px), 900px, 0) rotate(var(--spin, 540deg));
+  }
+}
+.champ-spin {
+  animation: champ-spin 60s linear infinite;
+}
+.champ-float {
+  animation: champ-float 5s ease-in-out infinite;
+}
+.champ-tape {
+  animation: champ-fall var(--dur, 9s) linear var(--delay, 0s) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .honour-gold,
+  .honour-silver,
+  .champ-spin,
+  .champ-float,
+  .champ-tape {
+    animation: none;
+  }
+  .champ-tape {
+    display: none;
+  }
+}

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, AtSign, BadgeCheck, CirclePlay, Gavel, Swords, Trophy } from "@/components/icons";
+import { ArrowRight, AtSign, BadgeCheck, CirclePlay, Crown, Gavel, Medal, Swords, Trophy } from "@/components/icons";
+import { HonourTags } from "@/components/honours";
 import { FilterPills } from "@/components/filter-pills";
 import { EmptyState, SectionTitle } from "@/components/page-header";
 import { TeamLink } from "@/components/team";
@@ -9,6 +10,7 @@ import { credits } from "@/lib/auction";
 import { AvailabilityBlock } from "@/components/availability";
 import { availabilityMap, availabilitySeasonId, dateAnswers, loadCommunity, matchDaysFor, profileMap, verifiedSet } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
+import { playerHonoursMap } from "@/lib/engine/honours";
 import { CARRY_SHARE, playerCareer } from "@/lib/engine/players";
 import { num } from "@/lib/format";
 import { dateKey, fmtDate } from "@/lib/time";
@@ -38,6 +40,8 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
   const myDates = dateAnswers(community, availSeasonId).get(id);
   const dates = availSeasonId && myDates ? { days: matchDaysFor(community, availSeasonId).map((d) => ({ day: d.day, label: d.label })), answers: myDates } : undefined;
   const verified = verifiedSet(community).has(id);
+  const honours = playerHonoursMap(idx).get(id);
+  const titles = honours?.filter((h) => h.kind === "champion").length ?? 0;
   const photo = profile?.photo_url ?? player.photo_url;
   const band = teamColor(currentTeam ?? log[0]?.team ?? null);
   const auctionHistory = community.auctionLots
@@ -49,14 +53,22 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
     <div className="space-y-16">
       <section className="full-bleed -mt-8 sm:-mt-10" style={{ background: band, color: onColor(band) }}>
         <div className="mx-auto flex max-w-7xl flex-wrap items-end gap-6 px-4 pt-10 pb-8 sm:gap-8 sm:px-6 sm:pt-14">
-          {photo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={photo} alt={player.ign} className="size-28 rounded-xl object-cover ring-4 ring-white/20 sm:size-36" />
-          ) : (
-            <div className="grid size-28 place-items-center rounded-xl bg-black/15 font-heading text-5xl font-extrabold italic sm:size-36 sm:text-6xl">
-              {player.ign.slice(0, 2).toUpperCase()}
-            </div>
-          )}
+          <div className="relative shrink-0">
+            {photo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photo} alt={player.ign} className={cn("size-28 rounded-xl object-cover ring-4 sm:size-36", titles ? "ring-gold" : "ring-white/20")} />
+            ) : (
+              <div className={cn("grid size-28 place-items-center rounded-xl bg-black/15 font-heading text-5xl font-extrabold italic sm:size-36 sm:text-6xl", titles && "ring-4 ring-gold")}>
+                {player.ign.slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            {titles > 0 && (
+              <span className="absolute -top-4 -right-3 rotate-12 drop-shadow-[0_3px_6px_rgb(0_0_0/0.35)]" title={`${titles}× champion`}>
+                <Crown weight="fill" className="size-9 text-gold" />
+                {titles > 1 && <span className="absolute inset-x-0 top-[13px] text-center font-heading text-[11px] font-extrabold text-brand">{titles}</span>}
+              </span>
+            )}
+          </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2 font-heading text-sm font-semibold tracking-wide uppercase opacity-90">
               {currentTeam ? (
@@ -74,11 +86,11 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
               )}
             </div>
             <h1 className="mt-2 text-6xl leading-[0.9] sm:text-8xl">{player.ign}</h1>
+            <HonourTags honours={honours} size="md" className="mt-3" />
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm opacity-85">
               {player.real_name && <span>{player.real_name}</span>}
               {player.bgmi_uid && <span className="font-mono text-xs">UID {player.bgmi_uid}</span>}
               {aliases.length > 0 && <span>formerly {aliases.map((a) => a.ign).join(", ")}</span>}
-              {totals.titles > 0 && <span className="font-semibold">{totals.titles}× champion</span>}
               {profile?.instagram && (
                 <a href={`https://instagram.com/${profile.instagram}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:underline">
                   <AtSign className="size-3.5" /> {profile.instagram}
@@ -205,7 +217,14 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
                     <td className="px-4 py-2.5">{s.winShare ? `${(s.winShare * 100).toFixed(1)}%` : "–"}</td>
                     <td className="px-4 py-2.5">{num(s.mvp, 0)}</td>
                     <td className="px-4 py-2.5">{s.potm}</td>
-                    <td className="px-4 py-2.5">{s.finish === "Champion" ? <span className="rounded-full bg-gold-soft px-2 py-0.5 text-xs font-medium text-gold">Champion</span> : s.finish ?? "–"}</td>
+                    <td className="px-4 py-2.5">{s.finish === "Champion" || s.finish === "Runner-up" ? (
+                        <span className={cn("inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 font-heading text-xs font-bold tracking-wide text-brand uppercase", s.finish === "Champion" ? "honour-gold" : "honour-silver")}>
+                          {s.finish === "Champion" ? <Crown weight="fill" className="size-3" /> : <Medal weight="fill" className="size-3" />}
+                          {s.finish}
+                        </span>
+                      ) : (
+                        s.finish ?? "–"
+                      )}</td>
                   </tr>
                 ))}
               </tbody>

@@ -1,12 +1,15 @@
 import Link from "next/link";
-import { Crown } from "@/components/icons";
+import { ChampionsShowcase } from "@/components/champions";
+import { Gavel } from "@/components/icons";
 import { EmptyState, PageHeader, SectionTitle } from "@/components/page-header";
 import { TeamLink, TeamLogo } from "@/components/team";
+import { honoursBySeason, seasonHonours } from "@/lib/engine/honours";
+import { showcaseProps } from "@/lib/honours-view";
 import { credits } from "@/lib/auction";
-import { loadCommunity } from "@/lib/community";
+import { loadCommunity, profileMap } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
-import { onColor, teamColor } from "@/lib/team-colors";
-import { filterGames, leagueStandings, seasonPodium, sortedSeasons } from "@/lib/engine/league";
+import { teamColor } from "@/lib/team-colors";
+import { filterGames, leagueStandings, sortedSeasons } from "@/lib/engine/league";
 import { playerLeaderboard, rankBy, type AwardKey } from "@/lib/engine/players";
 
 export const metadata = { title: "Hall of Fame" };
@@ -22,19 +25,17 @@ export default async function HallOfFame() {
   const [{ idx }, community] = await Promise.all([loadLeague(), loadCommunity()]);
   const seasons = sortedSeasons(idx.data);
   if (seasons.length === 0) return <EmptyState title="No seasons yet" />;
+  const profiles = profileMap(community);
+  const photoOf = (id: string) => profiles.get(id)?.photo_url ?? idx.playerById.get(id)?.photo_url ?? null;
 
   // All-time records (official games)
   const official = filterGames(idx, { type: "official" }).filter((g) => g.completed);
   const career = playerLeaderboard(idx, official);
   const titlesByPlayer = new Map<string, number>();
   const titlesByTeam = new Map<string, number>();
-  for (const s of seasons) {
-    const champ = seasonPodium(idx, s.id).champion?.id;
-    if (!champ) continue;
-    titlesByTeam.set(champ, (titlesByTeam.get(champ) ?? 0) + 1);
-    for (const r of idx.data.rosters.filter((x) => x.season_id === s.id && x.team_id === champ)) {
-      titlesByPlayer.set(r.player_id, (titlesByPlayer.get(r.player_id) ?? 0) + 1);
-    }
+  for (const h of honoursBySeason(idx)) {
+    titlesByTeam.set(h.champion.id, (titlesByTeam.get(h.champion.id) ?? 0) + 1);
+    for (const m of h.championSquad) titlesByPlayer.set(m.player.id, (titlesByPlayer.get(m.player.id) ?? 0) + 1);
   }
   let bestGame: { kills: number; playerId: string; gameId: string; label: string } | null = null;
   let biggestWin: { margin: number; gameId: string; label: string; winner: string | null } | null = null;
@@ -60,7 +61,8 @@ export default async function HallOfFame() {
       <PageHeader title="Hall of Fame" subtitle="Champions, award winners and records from every season" />
 
       {seasons.map((s) => {
-        const { champion: champ, runnerUp: runner } = seasonPodium(idx, s.id);
+        const honours = seasonHonours(idx, s.id);
+        const champ = honours?.champion ?? null;
         const board = playerLeaderboard(idx, filterGames(idx, { seasonId: s.id, type: "official" }));
         const leader = leagueStandings(idx, s)[0];
         const auction = community.auctions.find((a) => a.season_id === s.id && !a.is_practice);
@@ -73,53 +75,34 @@ export default async function HallOfFame() {
               <h2 className="font-heading text-3xl font-bold uppercase">{s.name}</h2>
               <span className="font-heading text-sm font-semibold tracking-wide text-muted-foreground uppercase">{champ ? `Season ${s.number}` : "In progress"}</span>
             </div>
-            <div
-              className={champ ? "flex flex-wrap items-end justify-between gap-6 rounded-xl px-6 py-7 sm:px-8" : undefined}
-              style={champ ? { background: teamColor(champ), color: onColor(teamColor(champ)) } : undefined}
-            >
-              {champ ? (
-                <>
-                  <div>
-                    <div className="flex items-center gap-1.5 font-heading text-sm font-bold tracking-widest uppercase opacity-90">
-                      <Crown className="size-4" /> Champions
-                    </div>
-                    <Link href={`/teams/${champ.id}`} className="mt-1 block font-heading text-5xl leading-none font-extrabold uppercase italic hover:underline sm:text-6xl">
-                      {champ.name}
+            {honours ? (
+              <>
+                <ChampionsShowcase {...showcaseProps(honours, photoOf)} />
+                {recordBuy && (
+                  <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Gavel className="size-4" /> Record auction buy:
+                    <Link href={`/players/${recordBuy.player_id}`} className="font-semibold text-foreground hover:text-hot">
+                      {idx.playerById.get(recordBuy.player_id)?.ign}
                     </Link>
-                  </div>
-                  <dl className="flex flex-wrap gap-8 text-sm">
-                    {runner && (
-                      <div>
-                        <dt className="text-xs font-medium tracking-wide uppercase opacity-75">Runner-up</dt>
-                        <dd className="mt-1 font-heading text-xl font-bold uppercase">{runner.name}</dd>
-                      </div>
-                    )}
-                    {recordBuy && (
-                      <div>
-                        <dt className="text-xs font-medium tracking-wide uppercase opacity-75">Record auction buy</dt>
-                        <dd className="mt-1 font-heading text-xl font-bold uppercase">
-                          {idx.playerById.get(recordBuy.player_id)?.ign} · {credits(recordBuy.sold_price ?? 0)}
-                        </dd>
-                      </div>
-                    )}
-                  </dl>
-                </>
-              ) : (
-                <div className="w-full rounded-lg border border-dashed bg-card p-5 text-sm text-muted-foreground">
-                  The champion is decided in the Final.
-                  {leader && leader.played > 0 && (
-                    <span className="mt-2 flex items-center gap-2 text-foreground">
-                      Top of the table: <TeamLink team={leader.team} size="xs" />
-                    </span>
-                  )}
-                  {recordBuy && (
-                    <span className="mt-2 block text-foreground">
-                      Record auction buy: <b>{idx.playerById.get(recordBuy.player_id)?.ign}</b> · {credits(recordBuy.sold_price ?? 0)}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
+                    · {credits(recordBuy.sold_price ?? 0)}
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="w-full rounded-lg border border-dashed bg-card p-5 text-sm text-muted-foreground">
+                The champion is decided in the Final.
+                {leader && leader.played > 0 && (
+                  <span className="mt-2 flex items-center gap-2 text-foreground">
+                    Top of the table: <TeamLink team={leader.team} size="xs" />
+                  </span>
+                )}
+                {recordBuy && (
+                  <span className="mt-2 block text-foreground">
+                    Record auction buy: <b>{idx.playerById.get(recordBuy.player_id)?.ign}</b> · {credits(recordBuy.sold_price ?? 0)}
+                  </span>
+                )}
+              </div>
+            )}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {SEASON_AWARDS.map((award) => {
                 const top = rankBy(board, award.key).filter((r) => r[award.key] > 0)[0];

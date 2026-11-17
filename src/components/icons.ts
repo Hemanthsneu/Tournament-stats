@@ -43,4 +43,6 @@ export {
   EyeIcon as Eye,
   BellRingingIcon as BellRinging,
   CalendarPlusIcon as CalendarPlus,
+  SparkleIcon as Sparkle,
+  StarIcon as Star,
 } from "@phosphor-icons/react/ssr";

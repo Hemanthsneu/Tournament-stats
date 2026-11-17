@@ -8,13 +8,23 @@ import { num } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const value = (row: PlayerAgg, key: AwardKey) =>
-  key === "avgKills" ? row.avgKills.toFixed(2) : key === "mvp" ? num(row.mvp, Number.isInteger(row.mvp) ? 0 : 1) : String(row[key]);
+  key === "avgKills"
+    ? row.avgKills.toFixed(2)
+    : key === "kpr"
+      ? row.kpr.toFixed(2)
+      : key === "share" || key === "winShare"
+        ? `${(row[key] * 100).toFixed(1)}%`
+        : key === "mvp"
+          ? num(row.mvp, Number.isInteger(row.mvp) ? 0 : 1)
+          : String(row[key]);
+/** Numbers that count up on the cards (rates and percentages are shown as text). */
+const countable = (key: AwardKey) => key === "kills" || key === "revives" || key === "mvp" || key === "potm" || key === "carries";
 
 /** `interactive`: cursor spotlight in the leader's team colour and numbers that count up. */
 export function AwardCards({ rows, keys, interactive }: { rows: PlayerAgg[]; keys?: AwardKey[]; interactive?: boolean }) {
   const awards = keys ? AWARDS.filter((a) => keys.includes(a.key)) : AWARDS;
   return (
-    <div className={cn("grid gap-4 sm:grid-cols-2", awards.length === 3 ? "lg:grid-cols-3" : awards.length === 4 ? "lg:grid-cols-4" : "lg:grid-cols-3 xl:grid-cols-5")}>
+    <div className={cn("grid gap-4 sm:grid-cols-2", awards.length === 3 ? "lg:grid-cols-3" : awards.length === 4 ? "lg:grid-cols-4" : awards.length > 5 ? "lg:grid-cols-3" : "lg:grid-cols-3 xl:grid-cols-5")}>
       {awards.map((award) => {
         const ranked = rankBy(rows, award.key).filter((r) => r[award.key] > 0);
         const [leader, ...rest] = ranked;
@@ -48,7 +58,7 @@ export function AwardCards({ rows, keys, interactive }: { rows: PlayerAgg[]; key
                     </div>
                     <div className="text-right">
                       <div className="font-heading text-5xl leading-none font-bold tabular">
-                        {interactive && award.key !== "avgKills" ? <CountUp to={Number(value(leader, award.key))} duration={1.2} /> : value(leader, award.key)}
+                        {interactive && countable(award.key) ? <CountUp to={Number(value(leader, award.key))} duration={1.2} /> : value(leader, award.key)}
                       </div>
                       <div className="mt-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{award.stat}</div>
                     </div>
@@ -79,17 +89,25 @@ export function AwardCards({ rows, keys, interactive }: { rows: PlayerAgg[]; key
   );
 }
 
-const COLS: { key: AwardKey | "games"; label: string }[] = [
+const COLS: { key: AwardKey | "games"; label: string; hint?: string }[] = [
   { key: "games", label: "Games" },
   { key: "kills", label: "Kills" },
   { key: "revives", label: "Revives" },
   { key: "mvp", label: "MVP" },
   { key: "potm", label: "POTM" },
-  { key: "avgKills", label: "K/G" },
+  { key: "avgKills", label: "K/G", hint: "Kills per game" },
+  { key: "kpr", label: "K/R", hint: "Kills per round (fair across 21 and 23 round maps)" },
+  { key: "share", label: "Contrib.", hint: "Contribution: share of the team's kills in the games played" },
+  { key: "winShare", label: "Win contrib.", hint: "Share of the team's kills in the games it won" },
+  { key: "carries", label: "Carries", hint: "Games with 40%+ of the team's kills" },
 ];
 
 export function PlayerTable({ rows, sortKey, sortHref }: { rows: PlayerAgg[]; sortKey: AwardKey; sortHref: (key: AwardKey) => string }) {
-  const ranked = rankBy(rows, sortKey);
+  // Rate stats rank qualified players first; the rest follow, faded, so nobody disappears.
+  const top = rankBy(rows, sortKey);
+  const inTop = new Set(top.map((r) => r.player.id));
+  const rest = rows.filter((r) => !inTop.has(r.player.id)).sort((x, y) => y[sortKey] - x[sortKey] || y.kills - x.kills);
+  const ranked = [...top, ...rest];
   return (
     <div className="overflow-x-auto rounded-xl border bg-card">
       <table className="w-full min-w-max text-sm tabular">
@@ -103,7 +121,7 @@ export function PlayerTable({ rows, sortKey, sortHref }: { rows: PlayerAgg[]; so
                 {c.key === "games" ? (
                   c.label
                 ) : (
-                  <Link href={sortHref(c.key)} scroll={false} className={cn("transition-colors hover:text-foreground", sortKey === c.key && "text-hot")}>
+                  <Link href={sortHref(c.key)} scroll={false} title={c.hint} className={cn("transition-colors hover:text-foreground", sortKey === c.key && "text-hot")}>
                     {c.label}
                     {sortKey === c.key && " ↓"}
                   </Link>
@@ -114,8 +132,8 @@ export function PlayerTable({ rows, sortKey, sortHref }: { rows: PlayerAgg[]; so
         </thead>
         <tbody>
           {ranked.map((r, i) => (
-            <tr key={r.player.id} className="border-b transition-colors last:border-0 hover:bg-accent/50">
-              <td className="py-2.5 pl-4 font-heading text-base font-bold text-muted-foreground">{i + 1}</td>
+            <tr key={r.player.id} className={cn("border-b transition-colors last:border-0 hover:bg-accent/50", !inTop.has(r.player.id) && "opacity-55")}>
+              <td className="py-2.5 pl-4 font-heading text-base font-bold text-muted-foreground">{inTop.has(r.player.id) ? i + 1 : "–"}</td>
               <td className="px-2 py-2.5">
                 <Link href={`/players/${r.player.id}`} className="font-medium transition-colors hover:text-muted-foreground">
                   {r.player.ign}
@@ -133,9 +151,13 @@ export function PlayerTable({ rows, sortKey, sortHref }: { rows: PlayerAgg[]; so
           ))}
         </tbody>
       </table>
-      {sortKey === "avgKills" && (
-        <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">Only players who played at least half of their team&apos;s games are ranked by average.</p>
+      {(sortKey === "avgKills" || sortKey === "kpr" || sortKey === "share" || sortKey === "winShare") && (
+        <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">Only players who played at least half of their team&apos;s games are ranked by this rate.</p>
       )}
+      <p className="border-t px-4 py-2.5 text-xs text-muted-foreground">
+        <b className="text-foreground">Contrib.</b> = share of the team&apos;s kills in the games played · <b className="text-foreground">Win contrib.</b> = the same in wins only ·{" "}
+        <b className="text-foreground">K/R</b> = kills per round · <b className="text-foreground">Carries</b> = games with 40%+ of the team&apos;s kills
+      </p>
     </div>
   );
 }

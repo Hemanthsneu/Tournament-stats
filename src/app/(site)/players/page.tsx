@@ -85,7 +85,13 @@ export default async function PlayersPage({ searchParams }: PageProps<"/players"
                 <th className="px-2 py-3 text-center font-semibold">Games</th>
                 <th className="px-2 py-3 text-center font-semibold">Kills</th>
                 <th className="px-2 py-3 text-center font-semibold">Revives</th>
-                <th className="px-4 py-3 text-center font-semibold">POTM</th>
+                <th className="px-2 py-3 text-center font-semibold">POTM</th>
+                <th className="px-2 py-3 text-center font-semibold" title="Kills per game">
+                  K/G
+                </th>
+                <th className="px-4 py-3 text-center font-semibold" title="Contribution: share of the team's kills in the games played">
+                  Contrib.
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -125,7 +131,9 @@ export default async function PlayersPage({ searchParams }: PageProps<"/players"
                   <td className="px-2 py-2.5 text-center">{stats?.games ?? 0}</td>
                   <td className="px-2 py-2.5 text-center font-semibold">{stats?.kills ?? 0}</td>
                   <td className="px-2 py-2.5 text-center">{stats?.revives ?? 0}</td>
-                  <td className="px-4 py-2.5 text-center">{stats?.potm ?? 0}</td>
+                  <td className="px-2 py-2.5 text-center">{stats?.potm ?? 0}</td>
+                  <td className="px-2 py-2.5 text-center text-muted-foreground">{stats?.games ? stats.avgKills.toFixed(1) : "–"}</td>
+                  <td className="px-4 py-2.5 text-center">{stats?.games ? `${(stats.share * 100).toFixed(1)}%` : "–"}</td>
                 </tr>
               ))}
             </tbody>

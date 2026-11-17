@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Trophy } from "@/components/icons";
 import { TeamLogo } from "@/components/team";
+import { gameTags } from "@/lib/engine/insights";
 import type { GameView, LeagueIndex } from "@/lib/engine/league";
 import { fmtDate, fmtTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
@@ -37,6 +38,7 @@ export function GameCard({
   const { game, teamA, teamB, completed, winnerId, map } = view;
   const potm = game.potm_player_id ? idx.playerById.get(game.potm_player_id) : null;
   const live = game.status === "live";
+  const tags = gameTags(view);
   return (
     <Link
       href={`/games/${game.id}`}
@@ -60,6 +62,16 @@ export function GameCard({
                     ? fmtTime(game.scheduled_at)
                     : "Scheduled"}
         </span>
+        {tags.thriller && (
+          <span className="rounded-sm bg-hot/10 px-1.5 py-px font-heading text-[10px] font-bold tracking-wide text-hot uppercase" title="Won by one round">
+            Thriller
+          </span>
+        )}
+        {tags.upset && (
+          <span className="rounded-sm bg-info-soft px-1.5 py-px font-heading text-[10px] font-bold tracking-wide text-info uppercase" title="Won with fewer kills">
+            Upset
+          </span>
+        )}
         {view.playoffNote === "if_needed" && (
           <span className="rounded-sm bg-gold-soft px-1.5 py-px font-heading text-[10px] font-bold tracking-wide text-gold uppercase" title="Played only if the series is 1–1">
             If needed

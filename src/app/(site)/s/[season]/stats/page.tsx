@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
 import { FilterPills } from "@/components/filter-pills";
+import { MatchStoriesSection } from "@/components/insights";
 import { AwardCards, PlayerTable } from "@/components/leaderboard";
 import { EmptyState, PageHeader, SectionTitle } from "@/components/page-header";
 import { TeamLink } from "@/components/team";
 import { loadLeague } from "@/lib/data";
 import { filterGames, seasonByNumber } from "@/lib/engine/league";
+import { carryJobs, clutchPlayers, matchStories, teamStories } from "@/lib/engine/insights";
 import { AWARDS, playerLeaderboard, teamTotals, type AwardKey } from "@/lib/engine/players";
 import { PLAYOFF_STAGES, type FixtureType, type Stage } from "@/lib/types";
 
@@ -69,7 +71,7 @@ export default async function StatsPage({ params, searchParams }: PageProps<"/s/
         <EmptyState title="No games played for this filter yet" />
       ) : (
         <>
-          <AwardCards rows={board} keys={type === "practice" ? ["mvp", "kills", "revives", "avgKills"] : undefined} />
+          <AwardCards rows={board} keys={type === "practice" ? ["mvp", "kills", "revives", "avgKills", "share", "kpr"] : undefined} />
           <div className="grid gap-4 sm:grid-cols-2">
             {[
               { title: "Team: Most Kills", t: mostKills, v: mostKills?.kills },
@@ -86,6 +88,7 @@ export default async function StatsPage({ params, searchParams }: PageProps<"/s/
               ) : null,
             )}
           </div>
+          <MatchStoriesSection stories={matchStories(games)} carries={carryJobs(idx, games)} clutch={clutchPlayers(idx, games)} teams={teamStories(games)} />
           <section>
             <SectionTitle>All players</SectionTitle>
             <PlayerTable rows={board} sortKey={sort} sortHref={(key) => href({ sort: key })} />

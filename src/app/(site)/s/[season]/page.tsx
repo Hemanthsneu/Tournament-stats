@@ -24,6 +24,7 @@ import {
   upNext,
   type GameView,
 } from "@/lib/engine/league";
+import { matchStories } from "@/lib/engine/insights";
 import { playerLeaderboard, rankBy } from "@/lib/engine/players";
 import { signed } from "@/lib/format";
 import { playoffFormat } from "@/lib/playoff-formats";
@@ -144,6 +145,8 @@ export default async function SeasonHome({ params }: PageProps<"/s/[season]">) {
   }
   if (next[0]) slides.push(matchSlide(next[0], next[0].game.scheduled_at ? "Up next" : "Next match"));
   if (latest[0]) slides.push(matchSlide(latest[0], "Latest result"));
+  const thriller = matchStories(official).thrillers[0];
+  if (thriller && thriller.view.game.id !== latest[0]?.game.id) slides.push(matchSlide(thriller.view, "Last-round thriller"));
   const fragger = rankBy(board, "kills").find((r) => r.kills > 0);
   if (fragger) {
     slides.push({
@@ -262,7 +265,7 @@ export default async function SeasonHome({ params }: PageProps<"/s/[season]">) {
 
       <Reveal>
         <SectionTitle action={<MoreLink href={`${base}/stats`}>All stats</MoreLink>}>Stat leaders</SectionTitle>
-        <AwardCards rows={board} keys={["mvp", "kills", "revives"]} interactive />
+        <AwardCards rows={board} keys={["mvp", "kills", "share", "revives"]} interactive />
       </Reveal>
     </div>
   );

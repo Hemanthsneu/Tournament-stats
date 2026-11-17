@@ -9,7 +9,7 @@ import { credits } from "@/lib/auction";
 import { AvailabilityBlock } from "@/components/availability";
 import { availabilityMap, availabilitySeasonId, dateAnswers, loadCommunity, matchDaysFor, profileMap, verifiedSet } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
-import { playerCareer } from "@/lib/engine/players";
+import { CARRY_SHARE, playerCareer } from "@/lib/engine/players";
 import { num } from "@/lib/format";
 import { dateKey, fmtDate } from "@/lib/time";
 import { onColor, teamColor } from "@/lib/team-colors";
@@ -109,6 +109,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
               ["MVP pts", num(totals.mvp, 0)],
               ["POTM", totals.potm],
               ["Kills / game", totals.games ? (totals.kills / totals.games).toFixed(1) : "–"],
+              ["Contribution", totals.games ? `${(totals.share * 100).toFixed(1)}%` : "–"],
             ].map(([label, value]) => (
               <div key={label}>
                 <dd className="font-heading text-4xl leading-none font-bold tabular">{value}</dd>
@@ -182,7 +183,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
             <table className="w-full min-w-max text-sm tabular">
               <thead>
                 <tr className="border-b bg-muted/50 font-heading text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
-                  {["Season", "Team", "Games", "Kills", "Revives", "Avg kills", "MVP", "POTM", "Team finish"].map((h) => (
+                  {["Season", "Team", "Games", "Kills", "Revives", "Avg kills", "Contribution", "Win contrib.", "MVP", "POTM", "Team finish"].map((h) => (
                     <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
                   ))}
                 </tr>
@@ -200,6 +201,8 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
                     <td className="px-4 py-2.5 font-semibold">{s.kills}</td>
                     <td className="px-4 py-2.5">{s.revives}</td>
                     <td className="px-4 py-2.5">{s.avgKills.toFixed(2)}</td>
+                    <td className="px-4 py-2.5 font-semibold">{s.games ? `${(s.share * 100).toFixed(1)}%` : "–"}</td>
+                    <td className="px-4 py-2.5">{s.winShare ? `${(s.winShare * 100).toFixed(1)}%` : "–"}</td>
                     <td className="px-4 py-2.5">{num(s.mvp, 0)}</td>
                     <td className="px-4 py-2.5">{s.potm}</td>
                     <td className="px-4 py-2.5">{s.finish === "Champion" ? <span className="rounded-full bg-gold-soft px-2 py-0.5 text-xs font-medium text-gold">Champion</span> : s.finish ?? "–"}</td>
@@ -220,7 +223,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
             <table className="w-full min-w-max text-sm tabular">
               <thead>
                 <tr className="border-b bg-muted/50 font-heading text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
-                  {["Date", "Game", "Team", "Opponent", "Map", "Result", "Kills", "Revives"].map((h) => (
+                  {["Date", "Game", "Team", "Opponent", "Map", "Result", "Kills", "Share", "Revives"].map((h) => (
                     <th key={h} className="px-3 py-3 text-left font-medium">{h}</th>
                   ))}
                 </tr>
@@ -248,6 +251,9 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
                       <td className="px-3 py-2 font-semibold">
                         {r.stat.kills}
                         {r.isPotm && <Trophy className="ml-1 inline size-3.5 text-primary" />}
+                      </td>
+                      <td className={cn("px-3 py-2 tabular", r.teamKills && r.stat.kills / r.teamKills >= CARRY_SHARE ? "font-semibold text-hot" : "text-muted-foreground")} title={`${r.stat.kills} of the team's ${r.teamKills} kills`}>
+                        {r.teamKills ? `${Math.round((r.stat.kills / r.teamKills) * 100)}%` : "–"}
                       </td>
                       <td className="px-3 py-2">{r.stat.revives}</td>
                     </tr>

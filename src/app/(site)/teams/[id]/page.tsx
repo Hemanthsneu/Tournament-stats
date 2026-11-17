@@ -36,13 +36,15 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
   const recent = [...played].reverse().slice(0, 6);
 
   // Top players while playing for this team (official, all seasons).
-  const byPlayer = new Map<string, { kills: number; revives: number; games: number }>();
+  const byPlayer = new Map<string, { kills: number; revives: number; games: number; teamKills: number }>();
   for (const g of played) {
+    const teamKills = g.teamA?.id === id ? g.killsA : g.killsB;
     for (const s of g.teamA?.id === id ? g.statsA : g.statsB) {
-      const agg = byPlayer.get(s.player_id) ?? { kills: 0, revives: 0, games: 0 };
+      const agg = byPlayer.get(s.player_id) ?? { kills: 0, revives: 0, games: 0, teamKills: 0 };
       agg.kills += s.kills;
       agg.revives += s.revives;
       agg.games++;
+      agg.teamKills += teamKills;
       byPlayer.set(s.player_id, agg);
     }
   }
@@ -157,6 +159,9 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
                     <th className="px-4 py-2 text-left font-semibold">Player</th>
                     <th className="px-2 py-2 text-center font-semibold">Games</th>
                     <th className="px-2 py-2 text-center font-semibold">Kills</th>
+                    <th className="px-2 py-2 text-center font-semibold" title="Share of the team's kills in the games they played">
+                      Contrib.
+                    </th>
                     <th className="px-4 py-2 text-center font-semibold">Revives</th>
                   </tr>
                 </thead>
@@ -168,6 +173,7 @@ export default async function TeamPage({ params }: PageProps<"/teams/[id]">) {
                       </td>
                       <td className="px-2 py-2 text-center">{a.games}</td>
                       <td className="px-2 py-2 text-center">{a.kills}</td>
+                      <td className="px-2 py-2 text-center font-semibold">{a.teamKills ? `${((a.kills / a.teamKills) * 100).toFixed(1)}%` : "–"}</td>
                       <td className="px-4 py-2 text-center">{a.revives}</td>
                     </tr>
                   ))}

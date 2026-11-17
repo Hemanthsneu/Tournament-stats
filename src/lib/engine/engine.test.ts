@@ -14,6 +14,7 @@ import {
   upNext,
 } from "./league";
 import { playerCareer, playerLeaderboard, rankBy, suggestPotm } from "./players";
+import { carryJobs, clutchPlayers, matchStories, teamStories } from "./insights";
 import { buildSampleData } from "../sample-data";
 import { PLAYOFF_FORMATS, type PlayoffFormat } from "../playoff-formats";
 import type { Fixture, Game, LeagueData, PlayerGameStat, Season, Team } from "../types";
@@ -468,5 +469,55 @@ describe("playoff formats", () => {
     expect(seasonPodium(idx, "s1").champion?.id).toBe("A");
     expect(teamFinish(idx, "s1", "A")).toBe("Champion");
     expect(teamFinish(idx, "s1", "B")).toBe("Runner-up");
+  });
+});
+
+describe("contribution and match stories", () => {
+  // Three games between A and B; A has two players (a1 carries), B one.
+  function data() {
+    const { data, game } = league(["A", "B"]);
+    game("A", "B", 11, 10, [0, 0]); // g1: A wins by one round
+    game("B", "A", 12, 9, [0, 0]); // g2: B wins by three
+    game("A", "B", 11, 10, [0, 0]); // g3: A wins by one round, with fewer kills (an upset)
+    data.stats = [];
+    const st = (game_id: string, player_id: string, team_id: string, kills: number) => data.stats.push({ game_id, player_id, team_id, kills, revives: 0 });
+    for (const p of ["a1", "a2", "b1"]) data.players.push({ id: p, ign: p.toUpperCase(), bgmi_uid: null, real_name: null, photo_url: null });
+    st("g1", "a1", "A", 12); st("g1", "a2", "A", 8); st("g1", "b1", "B", 15);
+    st("g2", "a1", "A", 6); st("g2", "a2", "A", 14); st("g2", "b1", "B", 25);
+    st("g3", "a1", "A", 10); st("g3", "a2", "A", 5); st("g3", "b1", "B", 22);
+    data.games.forEach((g, i) => (g.scheduled_at = `2026-11-0${i + 1}T14:00:00Z`));
+    return buildIndex(data);
+  }
+
+  it("works out each player's share of the team's kills, in all games and in wins", () => {
+    const idx = data();
+    const a1 = playerLeaderboard(idx, filterGames(idx, { seasonId: "s1" })).find((r) => r.player.id === "a1")!;
+    expect(a1.teamKills).toBe(55); // 20 + 20 + 15
+    expect(a1.share).toBeCloseTo(28 / 55);
+    expect(a1.winShare).toBeCloseTo(22 / 35); // g1 + g3
+    expect(a1.wins).toBe(2);
+    expect(a1.rounds).toBe(63);
+    expect(a1.kpr).toBeCloseTo(28 / 63);
+    expect(a1.carries).toBe(2); // 60% in g1, 67% in g3
+    expect(a1.best).toBe(12);
+    expect(rankBy(playerLeaderboard(idx, filterGames(idx, { seasonId: "s1" })), "share")[0].player.id).toBe("b1");
+  });
+
+  it("finds thrillers, upsets, carries, clutch players and streaks", () => {
+    const idx = data();
+    const games = filterGames(idx, { seasonId: "s1" });
+    const m = matchStories(games);
+    expect(m.thrillers.map((t) => t.view.game.id)).toEqual(["g3", "g1"]);
+    expect(m.upsets.map((u) => u.view.game.id)).toEqual(["g3"]); // A won g3 with 15 kills to 22
+    expect(m.blowouts[0].view.game.id).toBe("g2");
+    expect(m.bloodbaths[0].totalKills).toBe(45);
+    const carries = carryJobs(idx, games);
+    expect(carries[0]).toMatchObject({ player: { id: "a2" }, kills: 14, teamKills: 20, won: false }); // 70% in a loss
+    expect(carries[1]).toMatchObject({ player: { id: "a1" }, kills: 10, teamKills: 15, won: true });
+    expect(carries.some((c) => c.player.id === "b1")).toBe(false); // alone on the scoresheet: not a carry
+    expect(clutchPlayers(idx, games)[0]).toMatchObject({ player: { id: "a1" }, kills: 22, games: 2 });
+    const [a, b] = teamStories(games);
+    expect(a).toMatchObject({ team: { id: "A" }, closeWins: 2, closeLosses: 0, upsetWins: 1, longestStreak: 1, current: 1 });
+    expect(b).toMatchObject({ team: { id: "B" }, closeWins: 0, closeLosses: 2, current: -1 });
   });
 });

@@ -28,11 +28,34 @@ export interface PlayerAgg {
   /** Completed games the player's team played in the set; used for the "Best average" minimum. */
   teamGames: number;
   qualifiesForAverage: boolean;
+  /** Games their team won. */
+  wins: number;
+  /** Their team's kills in the games they played. */
+  teamKills: number;
+  /** Contribution: share of their team's kills in the games they played (0–1). */
+  share: number;
+  /** Win contribution: share of their team's kills in the games their team won (0–1). */
+  winShare: number;
+  /** Rounds played (fairer than games: maps are 21 or 23 rounds). */
+  rounds: number;
+  /** Kills per round. */
+  kpr: number;
+  /** Games with at least CARRY_SHARE of their team's kills. */
+  carries: number;
+  /** Most kills in one game. */
+  best: number;
 }
+
+/** A "carry" game: the player took at least this share of the team's kills. */
+export const CARRY_SHARE = 0.4;
+
+/** Their team's kills in a game (from the side they played on). */
+export const teamKillsFor = (g: GameView, teamId: string) => (teamId === g.fixture.team_a_id ? g.killsA : g.killsB);
+const roundsOf = (g: GameView) => (g.game.team_a_rounds ?? 0) + (g.game.team_b_rounds ?? 0);
 
 export function playerLeaderboard(idx: LeagueIndex, games: GameView[]): PlayerAgg[] {
   const completed = games.filter((g) => g.completed);
-  const aggs = new Map<string, PlayerAgg & { lastTeamId: string }>();
+  const aggs = new Map<string, PlayerAgg & { lastTeamId: string; winKills: number; winTeamKills: number }>();
   const teamGameCount = new Map<string, number>();
 
   for (const g of completed) {
@@ -57,14 +80,36 @@ export function playerLeaderboard(idx: LeagueIndex, games: GameView[]): PlayerAg
           avgRevives: 0,
           teamGames: 0,
           qualifiesForAverage: false,
+          wins: 0,
+          teamKills: 0,
+          share: 0,
+          winShare: 0,
+          rounds: 0,
+          kpr: 0,
+          carries: 0,
+          best: 0,
+          winKills: 0,
+          winTeamKills: 0,
         };
         aggs.set(player.id, agg);
       }
+      const tk = teamKillsFor(g, stat.team_id);
+      const won = g.winnerId === stat.team_id;
       agg.games++;
       agg.kills += stat.kills;
       agg.revives += stat.revives;
       agg.mvp += mvpScore(stat, g.season);
       agg.lastTeamId = stat.team_id;
+      agg.teamKills += tk;
+      agg.rounds += roundsOf(g);
+      agg.best = Math.max(agg.best, stat.kills);
+      const mates = (stat.team_id === g.fixture.team_a_id ? g.statsA : g.statsB).length;
+      if (tk > 0 && mates >= 2 && stat.kills / tk >= CARRY_SHARE) agg.carries++;
+      if (won) {
+        agg.wins++;
+        agg.winKills += stat.kills;
+        agg.winTeamKills += tk;
+      }
     }
     if (g.game.potm_player_id) {
       const agg = aggs.get(g.game.potm_player_id);
@@ -72,7 +117,7 @@ export function playerLeaderboard(idx: LeagueIndex, games: GameView[]): PlayerAg
     }
   }
 
-  return [...aggs.values()].map(({ lastTeamId, ...agg }) => {
+  return [...aggs.values()].map(({ lastTeamId, winKills, winTeamKills, ...agg }) => {
     const teamGames = teamGameCount.get(lastTeamId) ?? agg.games;
     return {
       ...agg,
@@ -81,11 +126,17 @@ export function playerLeaderboard(idx: LeagueIndex, games: GameView[]): PlayerAg
       avgRevives: agg.games ? agg.revives / agg.games : 0,
       teamGames,
       qualifiesForAverage: agg.games >= Math.ceil(teamGames / 2),
+      share: agg.teamKills ? agg.kills / agg.teamKills : 0,
+      winShare: winTeamKills ? winKills / winTeamKills : 0,
+      kpr: agg.rounds ? agg.kills / agg.rounds : 0,
     };
   });
 }
 
-export type AwardKey = "kills" | "revives" | "mvp" | "potm" | "avgKills";
+export type AwardKey = "kills" | "revives" | "mvp" | "potm" | "avgKills" | "share" | "winShare" | "kpr" | "carries";
+
+/** Rate stats are only ranked for players who played at least half of their team's games. */
+const RATE_KEYS: AwardKey[] = ["avgKills", "share", "winShare", "kpr"];
 
 export const AWARDS: { key: AwardKey; title: string; stat: string; description: string }[] = [
   { key: "mvp", title: "Season MVP", stat: "MVP pts", description: "Kills and revives combined" },
@@ -98,10 +149,14 @@ export const AWARDS: { key: AwardKey; title: string; stat: string; description: 
     stat: "Kills / game",
     description: "Kills per game (played at least half of their team's games)",
   },
+  { key: "share", title: "Biggest Contributor", stat: "of team kills", description: "Share of their team's kills in the games they played" },
+  { key: "winShare", title: "Match Winner", stat: "of kills in wins", description: "Share of their team's kills in the games it won" },
+  { key: "kpr", title: "Kills per Round", stat: "Kills / round", description: "Kills per round played (fair across 21 and 23 round maps)" },
+  { key: "carries", title: "Carry King", stat: "Carry games", description: `Games with ${CARRY_SHARE * 100}%+ of their team's kills` },
 ];
 
 export function rankBy(rows: PlayerAgg[], key: AwardKey): PlayerAgg[] {
-  const pool = key === "avgKills" ? rows.filter((r) => r.qualifiesForAverage) : rows;
+  const pool = RATE_KEYS.includes(key) ? rows.filter((r) => r.qualifiesForAverage && (key !== "winShare" || r.wins > 0)) : rows;
   return [...pool].sort(
     (a, b) =>
       b[key] - a[key] ||
@@ -162,6 +217,9 @@ export interface CareerSeasonRow {
   mvp: number;
   potm: number;
   avgKills: number;
+  /** Share of the team's kills (0–1), and the same in won games only. */
+  share: number;
+  winShare: number;
   finish: string | null;
 }
 
@@ -173,11 +231,13 @@ export interface CareerLogRow {
   won: boolean;
   isPotm: boolean;
   mvp: number;
+  /** Their team's kills in this game. */
+  teamKills: number;
 }
 
 export interface Career {
   player: Player;
-  totals: { games: number; kills: number; revives: number; mvp: number; potm: number; titles: number };
+  totals: { games: number; kills: number; revives: number; mvp: number; potm: number; titles: number; share: number; winShare: number };
   currentTeam: Team | null;
   seasons: CareerSeasonRow[];
   log: CareerLogRow[];
@@ -206,6 +266,7 @@ export function playerCareer(
       won: view.winnerId === stat.team_id,
       isPotm: view.game.potm_player_id === playerId,
       mvp: mvpScore(stat, view.season),
+      teamKills: teamKillsFor(view, stat.team_id),
     });
   }
   log.sort((a, b) => -compareLog(a, b));
@@ -240,6 +301,7 @@ export function playerCareer(
       mvp: rows.reduce((a, r) => a + r.mvp, 0),
       potm: rows.filter((r) => r.isPotm).length,
       avgKills: rows.length ? kills / rows.length : 0,
+      ...shares(rows),
       finish: lastTeam ? teamFinish(idx, season.id, lastTeam.id) : null,
     });
   }
@@ -258,12 +320,21 @@ export function playerCareer(
       mvp: log.reduce((a, r) => a + r.mvp, 0),
       potm: log.filter((r) => r.isPotm).length,
       titles: seasons.filter((s) => s.finish === "Champion").length,
+      ...shares(log),
     },
     currentTeam: current ? idx.teamById.get(current.team_id) ?? null : null,
     seasons,
     log,
     history,
   };
+}
+
+function shares(rows: CareerLogRow[]): { share: number; winShare: number } {
+  const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
+  const tk = sum(rows.map((r) => r.teamKills));
+  const wins = rows.filter((r) => r.won);
+  const wtk = sum(wins.map((r) => r.teamKills));
+  return { share: tk ? sum(rows.map((r) => r.stat.kills)) / tk : 0, winShare: wtk ? sum(wins.map((r) => r.stat.kills)) / wtk : 0 };
 }
 
 function compareLog(a: CareerLogRow, b: CareerLogRow): number {

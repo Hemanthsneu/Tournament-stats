@@ -64,6 +64,8 @@ function Comparison({ A, B, photoA, photoB }: { A: Career; B: Career; photoA: st
     { label: "Kills / game", a: per(A, A.totals.kills), b: per(B, B.totals.kills), fmt: (n) => n.toFixed(2) },
     { label: "Revives", a: A.totals.revives, b: B.totals.revives },
     { label: "Revives / game", a: per(A, A.totals.revives), b: per(B, B.totals.revives), fmt: (n) => n.toFixed(2) },
+    { label: "Contribution", a: A.totals.share * 100, b: B.totals.share * 100, fmt: (n) => `${n.toFixed(1)}%` },
+    { label: "Win contribution", a: A.totals.winShare * 100, b: B.totals.winShare * 100, fmt: (n) => `${n.toFixed(1)}%` },
     { label: "MVP points", a: A.totals.mvp, b: B.totals.mvp, fmt: (n) => n.toFixed(0) },
     { label: "Player of the Match", a: A.totals.potm, b: B.totals.potm },
     { label: "Titles", a: A.totals.titles, b: B.totals.titles },

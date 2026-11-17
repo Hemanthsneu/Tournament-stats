@@ -6,11 +6,14 @@ import { PageHeader } from "@/components/page-header";
 import { TeamLogo } from "@/components/team";
 import { Badge } from "@/components/ui/badge";
 import { loadLeague } from "@/lib/data";
+import { gameTags } from "@/lib/engine/insights";
 import type { GameView, LeagueIndex } from "@/lib/engine/league";
-import { mvpScore } from "@/lib/engine/players";
+import { CARRY_SHARE, mvpScore } from "@/lib/engine/players";
 import { num } from "@/lib/format";
 import { fmtLongDate, fmtTime, tzLabel } from "@/lib/time";
+import { teamColor } from "@/lib/team-colors";
 import { STAGE_LABELS, type PlayerGameStat, type Team } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export async function generateMetadata({ params }: PageProps<"/games/[id]">) {
   const { idx } = await loadLeague();
@@ -26,6 +29,7 @@ export default async function GamePage({ params }: PageProps<"/games/[id]">) {
   const { game, fixture, season, map, teamA, teamB, completed } = view;
   const siblings = idx.views.filter((v) => v.fixture.id === fixture.id && v.game.id !== game.id);
   const potm = game.potm_player_id ? idx.playerById.get(game.potm_player_id) : null;
+  const tags = gameTags(view);
   const context =
     fixture.stage === "league"
       ? fixture.matchday != null
@@ -55,6 +59,8 @@ export default async function GamePage({ params }: PageProps<"/games/[id]">) {
       >
         {fixture.type === "practice" && <Badge variant="secondary">Practice</Badge>}
         {completed ? <Badge variant="secondary">Final</Badge> : <Badge variant="outline">Scheduled</Badge>}
+        {tags.thriller && <Badge className="bg-hot text-white">Last-round thriller</Badge>}
+        {tags.upset && <Badge className="bg-info-soft text-info">Upset: won with fewer kills</Badge>}
       </PageHeader>
 
       <section className="space-y-4">
@@ -133,6 +139,7 @@ export default async function GamePage({ params }: PageProps<"/games/[id]">) {
 
 function Lineup({ idx, view, team, stats }: { idx: LeagueIndex; view: GameView; team: Team | null; stats: PlayerGameStat[] }) {
   const rows = [...stats].sort((a, b) => b.kills - a.kills || b.revives - a.revives);
+  const teamKills = stats.reduce((n, s) => n + s.kills, 0);
   return (
     <div className="overflow-hidden rounded-xl border bg-card">
       <div className="flex items-center gap-2 border-b px-4 py-3">
@@ -145,6 +152,9 @@ function Lineup({ idx, view, team, stats }: { idx: LeagueIndex; view: GameView; 
           <tr className="border-b bg-muted/50 font-heading text-[13px] font-semibold tracking-wide text-muted-foreground uppercase">
             <th className="px-4 py-2 text-left font-semibold">Player</th>
             <th className="px-2 py-2 text-center font-semibold">Kills</th>
+            <th className="px-2 py-2 text-center font-semibold" title="Share of the team's kills in this game">
+              Share
+            </th>
             <th className="px-2 py-2 text-center font-semibold">Revives</th>
             <th className="px-4 py-2 text-center font-semibold">MVP</th>
           </tr>
@@ -162,6 +172,16 @@ function Lineup({ idx, view, team, stats }: { idx: LeagueIndex; view: GameView; 
                   {isPotm && <Trophy className="ml-1 inline size-3.5 text-primary" />}
                 </td>
                 <td className="px-2 py-2 text-center">{s.kills}</td>
+                <td className="px-2 py-2">
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span className="h-1.5 w-12 overflow-hidden rounded-full bg-muted">
+                      <span className="block h-full rounded-full" style={{ width: `${teamKills ? (s.kills / teamKills) * 100 : 0}%`, background: teamColor(team) }} />
+                    </span>
+                    <span className={cn("w-8 text-right text-xs", teamKills && s.kills / teamKills >= CARRY_SHARE ? "font-semibold text-hot" : "text-muted-foreground")}>
+                      {teamKills ? `${Math.round((s.kills / teamKills) * 100)}%` : "–"}
+                    </span>
+                  </div>
+                </td>
                 <td className="px-2 py-2 text-center">{s.revives}</td>
                 <td className="px-4 py-2 text-center text-muted-foreground">{num(mvpScore(s, view.season), 1)}</td>
               </tr>

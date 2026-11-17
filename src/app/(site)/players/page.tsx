@@ -2,12 +2,14 @@ import Link from "next/link";
 import { Search, Swords } from "@/components/icons";
 import { MEDALS, PlayerAvatar, Podium, type PodiumEntry } from "@/components/player-podium";
 import { CrosshairIcon, PanIcon } from "@/components/pubg-icons";
+import { HonourTags } from "@/components/honours";
 import { EmptyState, PageHeader } from "@/components/page-header";
 import { TeamLink } from "@/components/team";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { loadCommunity, profileMap } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
+import { playerHonoursMap } from "@/lib/engine/honours";
 import { filterGames, sortedSeasons } from "@/lib/engine/league";
 import { playerLeaderboard, rankBy, type AwardKey, type PlayerAgg } from "@/lib/engine/players";
 import { num } from "@/lib/format";
@@ -49,6 +51,7 @@ export default async function PlayersPage({ searchParams }: PageProps<"/players"
   const honours = new Map<string, string[]>();
   fraggers.forEach((e, i) => honours.set(e.player.id, [...(honours.get(e.player.id) ?? []), `#${i + 1} fragger`]));
   mvps.forEach((e, i) => honours.set(e.player.id, [...(honours.get(e.player.id) ?? []), `#${i + 1} MVP`]));
+  const titles = playerHonoursMap(idx);
   const medal = (id: string) => {
     const ranks = [fraggers.findIndex((e) => e.player.id === id), mvps.findIndex((e) => e.player.id === id)].filter((r) => r >= 0);
     return ranks.length ? MEDALS[Math.min(...ranks)] : null;
@@ -115,9 +118,10 @@ export default async function PlayersPage({ searchParams }: PageProps<"/players"
                           {player.ign}
                         </Link>
                         {aliases.get(player.id) && <span className="ml-2 text-xs text-muted-foreground">formerly {aliases.get(player.id)!.join(", ")}</span>}
-                        {honours.has(player.id) && (
-                          <div className="mt-0.5 flex gap-1">
-                            {honours.get(player.id)!.map((h) => (
+                        {(honours.has(player.id) || titles.has(player.id)) && (
+                          <div className="mt-0.5 flex flex-wrap gap-1">
+                            <HonourTags honours={titles.get(player.id)} />
+                            {(honours.get(player.id) ?? []).map((h) => (
                               <span key={h} className="rounded-sm bg-gold-soft px-1.5 py-px font-heading text-[10px] font-bold tracking-wide text-gold uppercase">
                                 {h}
                               </span>

@@ -15,6 +15,7 @@ import {
 } from "./league";
 import { playerCareer, playerLeaderboard, rankBy, suggestPotm } from "./players";
 import { carryJobs, clutchPlayers, matchStories, teamStories } from "./insights";
+import { playerHonoursMap, seasonHonours } from "./honours";
 import { buildSampleData } from "../sample-data";
 import { PLAYOFF_FORMATS, type PlayoffFormat } from "../playoff-formats";
 import type { Fixture, Game, LeagueData, PlayerGameStat, Season, Team } from "../types";
@@ -469,6 +470,31 @@ describe("playoff formats", () => {
     expect(seasonPodium(idx, "s1").champion?.id).toBe("A");
     expect(teamFinish(idx, "s1", "A")).toBe("Champion");
     expect(teamFinish(idx, "s1", "B")).toBe("Runner-up");
+  });
+
+  it("honours: both squads, the Final score, its star and each player's tags", () => {
+    const t = finished("final2");
+    for (const id of ["a1", "a2", "b1", "bench"]) t.data.players.push({ id, ign: id, bgmi_uid: null, real_name: null, photo_url: null });
+    const roster = (player_id: string, team_id: string) => ({ id: `r-${player_id}`, season_id: "s1", team_id, player_id, joined_on: "2026-01-01", left_on: null });
+    t.data.rosters.push(roster("a1", "A"), roster("a2", "A"), roster("b1", "B"), roster("bench", "B"));
+    expect(seasonHonours(buildIndex(t.data), "s1")).toBeNull(); // Final not played yet
+    t.win("final", false); // B beats A 2–0
+    const st = (game_id: string, player_id: string, team_id: string, kills: number) => ({ game_id, player_id, team_id, kills, revives: 0 });
+    t.data.stats.push(st("final-1", "b1", "B", 9), st("final-2", "b1", "B", 7), st("final-1", "a1", "A", 5), st("final-1", "a2", "A", 6));
+    const idx = buildIndex(t.data);
+    const h = seasonHonours(idx, "s1")!;
+    expect(h).toMatchObject({ champion: { id: "B" }, runnerUp: { id: "A" }, final: { won: 2, lost: 0 }, finalStar: { player: { id: "b1" }, kills: 16 } });
+    // Roster members count even without games; most kills first.
+    expect(h.championSquad.map((m) => [m.player.id, m.games, m.kills])).toEqual([["b1", 2, 16], ["bench", 0, 0]]);
+    expect(h.runnerUpSquad.map((m) => m.player.id)).toEqual(["a2", "a1"]);
+    const tags = playerHonoursMap(idx);
+    expect(tags.get("bench")).toMatchObject([{ kind: "champion", team: { id: "B" }, season: { number: 1 } }]);
+    expect(tags.get("a1")).toMatchObject([{ kind: "runner-up", team: { id: "A" } }]);
+  });
+
+  it("honours: with no playoffs the top two of the table, no Final line", () => {
+    const h = seasonHonours(buildIndex(finished("none").data), "s1")!;
+    expect(h).toMatchObject({ champion: { id: "A" }, runnerUp: { id: "B" }, final: null, finalStar: null });
   });
 });
 

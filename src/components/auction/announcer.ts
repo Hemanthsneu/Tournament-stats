@@ -83,9 +83,10 @@ export function useAnnouncer() {
     (text: string, opts: { interrupt?: boolean } = {}) => {
       if (!enabled || !("speechSynthesis" in window)) return;
       if (opts.interrupt) window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
+      const u = new SpeechSynthesisUtterance(speakable(text));
       if (voice.current) u.voice = voice.current;
-      u.rate = 1.05;
+      u.rate = 0.9;
+      u.pitch = 1;
       window.speechSynthesis.speak(u);
     },
     [enabled],
@@ -129,4 +130,18 @@ export function useAnnouncer() {
 }
 
 const WORDS = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+/**
+ * Make gamer tags sound like names instead of being spelled out: "RAZE" → "Raze", "dj_tillu" → "dj tillu",
+ * "Mangapathiii" → "Mangapathi", "Raze07" → "Raze 07".
+ */
+export function speakable(text: string): string {
+  return text
+    .replace(/[_-]+/g, " ")
+    .replace(/(\w)\.(\w)/g, "$1 $2")
+    .replace(/([a-zA-Z])\1{2,}/g, "$1")
+    .replace(/([a-zA-Z])(\d)/g, "$1 $2")
+    .replace(/(\d)([a-zA-Z])/g, "$1 $2")
+    .replace(/\b([A-Z]{3,})\b/g, (w) => w[0] + w.slice(1).toLowerCase());
+}
+
 export const countWord = (n: number) => WORDS[n] ?? String(n);

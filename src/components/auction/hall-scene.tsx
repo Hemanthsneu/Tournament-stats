@@ -5,7 +5,7 @@ import { credits } from "@/lib/auction";
 import { cn } from "@/lib/utils";
 
 /** The draw ceremony, in ms after a new player is drawn. The name is announced at REVEAL_MS. */
-export const DRAW_TIMELINE = { toBag: 650, dig: 1300, back: 2000, done: 5600 } as const;
+export const DRAW_TIMELINE = { toBag: 1400, dig: 2600, back: 4000, done: 8000 } as const;
 export const REVEAL_MS = DRAW_TIMELINE.back;
 const SOLD_MS = 1800;
 
@@ -74,7 +74,13 @@ function Auctioneer({ phase, ign }: { phase: Phase; ign: string | null }) {
   const rightArm = phase === "sold" ? [-20, -150, -38, -150, -38] : walking ? 0 : phase === "announce" ? -14 : -10;
   const holdsSlip = phase === "back" || phase === "announce";
   return (
-    <div className={cn("relative h-[180px] w-[80px]", walking ? "hall-walking" : "hall-idle")}>
+    <motion.div
+      className={cn("relative h-[180px] w-[80px]", walking ? "hall-walking" : "hall-idle")}
+      animate={{ rotate: phase === "toBag" ? -4 : phase === "back" ? 4 : 0, y: phase === "announce" ? -4 : 0 }}
+      transition={{ type: "spring", stiffness: 90, damping: 16 }}
+      style={{ originY: 1 }}
+    >
+      <span aria-hidden className="absolute -bottom-2 left-1/2 h-3 w-20 -translate-x-1/2 rounded-[50%] bg-black/45 blur-[3px]" />
       {/* legs */}
       <div className="hall-leg-a absolute top-[112px] left-[26px] h-[60px] w-[13px] rounded-b-sm" style={{ background: SUIT }}>
         <span className="absolute -bottom-1 -left-1 h-[8px] w-[19px] rounded-full bg-[#0b0d12]" />
@@ -88,7 +94,7 @@ function Auctioneer({ phase, ign }: { phase: Phase; ign: string | null }) {
           className="absolute top-[58px] left-[4px] h-[56px] w-[14px]"
           style={{ originX: 0.5, originY: 0.08 }}
           animate={{ rotate: leftArm }}
-          transition={{ type: "spring", stiffness: 160, damping: 14 }}
+          transition={{ type: "spring", stiffness: 70, damping: 13 }}
         >
           <span className="absolute inset-x-0 top-0 h-[46px] rounded-full" style={{ background: SUIT }} />
           <span className="absolute bottom-0 left-[1px] size-[12px] rounded-full" style={{ background: SKIN }} />
@@ -143,7 +149,7 @@ function Auctioneer({ phase, ign }: { phase: Phase; ign: string | null }) {
           <path d={phase === "announce" || phase === "sold" ? "M16 35 Q22 41 28 35 Z" : "M17 35.5 Q22 38 27 35.5"} fill={phase === "announce" || phase === "sold" ? "#7a1f1f" : "none"} stroke="#7a1f1f" strokeWidth="1.4" strokeLinecap="round" />
         </svg>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -315,7 +321,7 @@ export function HallScene({ drawAt, now, ign, poolLeft, leaderId, bid, bidKey, r
         aria-hidden
         className="pointer-events-none absolute top-0 -z-10 h-[78%] w-[46%] -translate-x-1/2"
         animate={{ left: `${x}%` }}
-        transition={{ duration: still ? 0 : 0.65, ease: "easeInOut" }}
+        transition={{ duration: still ? 0 : 1.4, ease: [0.45, 0, 0.25, 1] }}
         style={{
           background:
             "radial-gradient(42% 12% at 50% 93%, rgb(255 236 190 / 0.28), transparent 70%), conic-gradient(from 163deg at 50% 0%, transparent 0deg, rgb(255 240 200 / 0.1) 9deg, rgb(255 240 200 / 0.18) 17deg, rgb(255 240 200 / 0.1) 25deg, transparent 34deg)",
@@ -338,7 +344,7 @@ export function HallScene({ drawAt, now, ign, poolLeft, leaderId, bid, bidKey, r
       </div>
 
       {/* auctioneer (moves across the stage) */}
-      <motion.div className="pointer-events-none absolute inset-x-0 top-[14%]" animate={{ x: `${x - PODIUM_X}%` }} transition={{ duration: still ? 0 : 0.65, ease: "easeInOut" }} initial={false}>
+      <motion.div className="pointer-events-none absolute inset-x-0 top-[14%]" animate={{ x: `${x - PODIUM_X}%` }} transition={{ duration: still ? 0 : 1.4, ease: [0.45, 0, 0.25, 1] }} initial={false}>
         <div className="absolute -translate-x-1/2" style={{ left: `${PODIUM_X}%` }}>
           <div className={cn("origin-top", big ? "scale-[1.05]" : "scale-[0.82] sm:scale-90")}>
             <Auctioneer phase={phase} ign={ign} />

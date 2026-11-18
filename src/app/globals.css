@@ -306,10 +306,10 @@
 @keyframes hall-leg {
   0%,
   100% {
-    transform: rotate(16deg);
+    transform: rotate(12deg);
   }
   50% {
-    transform: rotate(-16deg);
+    transform: rotate(-12deg);
   }
 }
 @keyframes hall-bob {
@@ -362,13 +362,13 @@
   transform-origin: 50% 0%;
 }
 .hall-walking .hall-leg-a {
-  animation: hall-leg 0.45s ease-in-out infinite;
+  animation: hall-leg 0.9s ease-in-out infinite;
 }
 .hall-walking .hall-leg-b {
-  animation: hall-leg 0.45s ease-in-out infinite reverse;
+  animation: hall-leg 0.9s ease-in-out infinite reverse;
 }
 .hall-walking .hall-body {
-  animation: hall-bob 0.225s ease-in-out infinite;
+  animation: hall-bob 0.45s ease-in-out infinite;
 }
 .hall-idle .hall-body {
   animation: hall-breathe 3s ease-in-out infinite;

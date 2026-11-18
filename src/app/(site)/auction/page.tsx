@@ -1,5 +1,6 @@
 import { Gavel } from "@/components/icons";
 import { AuctionRoom, type RoomPlayer } from "@/components/auction/auction-room";
+import { scoutReport } from "@/lib/engine/profile";
 import { AuctionValue } from "@/components/auction/auction-value";
 import { EmptyState } from "@/components/page-header";
 import { availabilityMap, availabilitySeason, dateAnswers, featuredAuction, getViewer, loadCommunity, matchDaysFor, profileMap, verifiedSet } from "@/lib/community";
@@ -57,6 +58,7 @@ export default async function AuctionPage({ searchParams }: PageProps<"/auction"
       stats: c ? { games: c.games, kills: c.kills, revives: c.revives, mvp: c.mvp, potm: c.potm, avgKills: c.avgKills } : null,
       availability: availability.get(id) ?? null,
       dates: answers.get(id) ?? {},
+      rating: scoutReport(idx, id)?.overall ?? null,
     };
   }
   const teams: Record<string, Team> = {};
@@ -64,6 +66,16 @@ export default async function AuctionPage({ searchParams }: PageProps<"/auction"
     const team = idx.teamById.get(t.team_id);
     if (team) teams[t.team_id] = team;
   }
+  // Lineup size for match-day cover: the usual squad size in this season's games, else the latest season's.
+  const sizes = (seasonId: string | undefined) =>
+    filterGames(idx, { seasonId, type: "official" })
+      .map((g) => g.game.squad_size)
+      .filter((n): n is number => !!n);
+  const pickSizes = sizes(auction.season_id ?? undefined);
+  const recent = pickSizes.length ? pickSizes : sizes(sortedSeasons(idx.data).find((s) => sizes(s.id).length)?.id);
+  const counts = new Map<number, number>();
+  for (const n of recent) counts.set(n, (counts.get(n) ?? 0) + 1);
+  const lineup = [...counts.entries()].sort((x, y) => y[1] - x[1] || y[0] - x[0])[0]?.[0] ?? 5;
   const captainTeamId = viewer?.playerId ? snapshot.teams.find((t) => t.captain_player_id === viewer.playerId)?.team_id ?? null : null;
 
   return (
@@ -73,6 +85,7 @@ export default async function AuctionPage({ searchParams }: PageProps<"/auction"
         initial={snapshot}
         players={players}
         matchDays={matchDays}
+        lineup={lineup}
         teams={teams}
         viewer={{ isAdmin: !!viewer?.isAdmin, captainTeamId, signedIn: !!viewer, playerId: viewer?.playerId ?? null, userId: viewer?.userId ?? null }}
         screen={sp.screen === "1"}

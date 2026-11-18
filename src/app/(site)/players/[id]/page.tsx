@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowRight, AtSign, BadgeCheck, CirclePlay, Crown, Gavel, Medal, Swords, Trophy } from "@/components/icons";
 import { HonourTags } from "@/components/honours";
+import { ScoutCard } from "@/components/scout-card";
 import { FilterPills } from "@/components/filter-pills";
 import { EmptyState, SectionTitle } from "@/components/page-header";
 import { TeamLink } from "@/components/team";
@@ -11,6 +12,7 @@ import { AvailabilityBlock } from "@/components/availability";
 import { availabilityMap, availabilitySeasonId, dateAnswers, loadCommunity, matchDaysFor, profileMap, verifiedSet } from "@/lib/community";
 import { loadLeague } from "@/lib/data";
 import { playerHonoursMap } from "@/lib/engine/honours";
+import { scoutReport } from "@/lib/engine/profile";
 import { CARRY_SHARE, playerCareer } from "@/lib/engine/players";
 import { num } from "@/lib/format";
 import { dateKey, fmtDate } from "@/lib/time";
@@ -44,6 +46,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
   const titles = honours?.filter((h) => h.kind === "champion").length ?? 0;
   const photo = profile?.photo_url ?? player.photo_url;
   const band = teamColor(currentTeam ?? log[0]?.team ?? null);
+  const report = scoutReport(idx, id);
   const auctionHistory = community.auctionLots
     .filter((l) => l.player_id === id && (l.status === "sold" || l.status === "unsold"))
     .map((l) => ({ lot: l, auction: community.auctions.find((a) => a.id === l.auction_id && !a.is_practice) }))
@@ -131,6 +134,8 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/p
           </dl>
         </div>
       </section>
+
+      {report && <ScoutCard report={report} ign={player.ign} photo={photo} role={profile?.role ?? null} color={band} teamTag={(currentTeam ?? log[0]?.team)?.tag ?? null} />}
 
       {((availability && availability.days.length > 0) || dates) && (
         <div className="flex flex-wrap items-start gap-x-8 gap-y-3 rounded-lg border bg-card px-5 py-4">

@@ -124,3 +124,24 @@ export function dateLevel(s: DateSummary): AvailabilityLevel {
 
 /** For sorting: yes counts 1, maybe half. */
 export const dateScore = (s: DateSummary) => s.yes + s.maybe * 0.5;
+
+/** Share of match days a player can make (yes 1, maybe ½), or null if they haven't answered any. */
+export function dateShare(days: string[], answers: Record<string, DateStatus> | undefined): number | null {
+  const s = dateSummary(days, answers);
+  if (!s.total || s.unanswered === s.total) return null;
+  return dateScore(s) / s.total;
+}
+
+export const AVAIL_TIER: Record<AvailabilityLevel, string> = { high: "Full-timer", medium: "Regular", low: "Part-timer", unset: "Not answered" };
+
+/**
+ * For each match day, how many of these players said yes, and whether that fills a lineup.
+ * `need` is the lineup size (e.g. 5 for 5v5).
+ */
+export function squadCoverage(days: string[], squad: (Record<string, DateStatus> | undefined)[], need: number) {
+  return days.map((day) => {
+    const yes = squad.filter((a) => a?.[day] === "yes").length;
+    const maybe = squad.filter((a) => a?.[day] === "maybe").length;
+    return { day, yes, maybe, ok: yes >= need, risky: yes < need && yes + maybe >= need };
+  });
+}

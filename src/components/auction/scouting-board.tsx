@@ -6,13 +6,13 @@ import { toast } from "sonner";
 import { DateStrip, WeekStrip } from "@/components/availability";
 import { CrosshairIcon, PanIcon } from "@/components/pubg-icons";
 import { Input } from "@/components/ui/input";
-import { DAYS, dateScore, dateSummary, fmtDayMonth, fmtWeekday, timeWindow } from "@/lib/availability";
+import { DAYS, dateScore, dateShare, dateSummary, fmtDayMonth, fmtWeekday, timeWindow } from "@/lib/availability";
 import { browserSupabase } from "@/lib/supabase/browser";
 import type { AuctionLot } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import type { RoomPlayer } from "./auction-room";
 
-type Sort = "kills" | "mvp" | "kg" | "days" | "name";
+type Sort = "kills" | "mvp" | "kg" | "adj" | "ovr" | "days" | "name";
 type Tab = "pool" | "unsold" | "shortlist";
 
 /**
@@ -88,7 +88,17 @@ export function ScoutingBoard({
       .filter((r) => (byDate ? date === null || r.p.dates[date] === "yes" : day === null || r.p.availability?.days.includes(day)))
       .sort((a, b) => {
         const s = (x: typeof a) =>
-          sort === "kills" ? x.p.stats?.kills ?? -1 : sort === "mvp" ? x.p.stats?.mvp ?? -1 : sort === "kg" ? x.p.stats?.avgKills ?? -1 : sort === "days" ? (byDate ? dateScore(dateSummary(dayList, x.p.dates)) : x.p.availability?.days.length ?? -1) : 0;
+          sort === "kills"
+            ? x.p.stats?.kills ?? -1
+            : sort === "mvp"
+              ? x.p.stats?.mvp ?? -1
+              : sort === "kg"
+                ? x.p.stats?.avgKills ?? -1
+                : sort === "ovr"
+                  ? x.p.rating ?? -1
+                  : sort === "adj"
+                    ? (x.p.stats?.avgKills ?? 0) * (dateShare(dayList, x.p.dates) ?? 0) - (Object.keys(x.p.dates).length ? 0 : 1)
+                    : sort === "days" ? (byDate ? dateScore(dateSummary(dayList, x.p.dates)) : x.p.availability?.days.length ?? -1) : 0;
         return sort === "name" ? a.p.ign.localeCompare(b.p.ign) : s(b) - s(a) || a.p.ign.localeCompare(b.p.ign);
       });
   }, [source, players, q, day, date, byDate, dayList, sort]);
@@ -155,6 +165,8 @@ export function ScoutingBoard({
             <option value="kills">Kills</option>
             <option value="mvp">MVP points</option>
             <option value="kg">Kills / game</option>
+            <option value="adj">Kills per match day (K/G × availability)</option>
+            <option value="ovr">Overall rating</option>
             <option value="days">Most available</option>
             <option value="name">Name</option>
           </select>

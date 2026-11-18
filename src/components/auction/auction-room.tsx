@@ -4,17 +4,20 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import Link from "next/link";
 import { AnimatePresence, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
-import { Maximize, Monitor, Pause, Play, RotateCcw, Shuffle, Square, Undo2, Volume2, VolumeX, X } from "@/components/icons";
+import { Maximize, Monitor, Pause, Play, RotateCcw, Shuffle, Sparkle, Square, Undo2, Volume2, VolumeX, X } from "@/components/icons";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { bidOptions, credits, lotBase, teamPurse } from "@/lib/auction";
 import { browserSupabase } from "@/lib/supabase/browser";
-import { teamColor } from "@/lib/team-colors";
+import { squadCoverage } from "@/lib/availability";
+import { onColor, teamColor } from "@/lib/team-colors";
 import type { AuctionLot, AuctionSnapshot, DateStatus, PlayerAvailability, Team } from "@/lib/types";
-import { AvailabilityBlock } from "@/components/availability";
+import { AvailabilityBlock, DateStrip } from "@/components/availability";
 import DecryptedText from "@/components/reactbits/DecryptedText";
 import { countWord, useAnnouncer } from "./announcer";
+import { AvailabilityVerdict } from "./availability-verdict";
+import { HallScene, REVEAL_MS, stageShow, type HallTeam } from "./hall-scene";
 import { ChatPanel, ChatSheet, useAuctionChat } from "./chat-panel";
 import { MyStatus, REACTIONS, ReactionBar, ReactionLayer, StartCountdown, useAlerts, useAuctionLive, WatchingCount, type ReactionKind } from "./live-extras";
 import {
@@ -49,6 +52,8 @@ export interface RoomPlayer {
   availability: PlayerAvailability | null;
   /** Answers for the season's match days. */
   dates: Record<string, DateStatus>;
+  /** Overall rating from official games (40–99), once they've played enough. */
+  rating?: number | null;
 }
 
 interface Props {
@@ -56,6 +61,8 @@ interface Props {
   initial: AuctionSnapshot;
   players: Record<string, RoomPlayer>;
   matchDays: { day: string; label: string | null }[];
+  /** Players a team needs on a match day (lineup size), for availability coverage. */
+  lineup?: number;
   teams: Record<string, Team>;
   viewer: { isAdmin: boolean; captainTeamId: string | null; signedIn: boolean; playerId?: string | null; userId?: string | null };
   screen: boolean;
@@ -66,7 +73,7 @@ type Result = { kind: "sold" | "unsold"; lot: AuctionLot; at: number };
 /** After the price changes, bid buttons pause briefly so a tap meant for the old price can't land on the new one. */
 const FREEZE_MS = 900;
 
-export function AuctionRoom({ auctionId, initial, players, matchDays, teams, viewer, screen }: Props) {
+export function AuctionRoom({ auctionId, initial, players, matchDays, lineup = 5, teams, viewer, screen }: Props) {
   const sb = browserSupabase();
   const [snap, setSnap] = useState(initial);
   const [now, setNow] = useState(() => Date.parse(initial.now));
@@ -83,6 +90,12 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
   const announcer = useAnnouncer();
   const { speak, sfx } = announcer;
   const crowdOn = useSyncExternalStore(crowdSounds.subscribe, crowdSounds.get, () => true);
+  const showOn = useSyncExternalStore(stageShow.subscribe, stageShow.get, () => true);
+  const stage = showOn && !reduceMotion;
+  // When the current player was drawn (server clock), to play the auctioneer's draw on stage.
+  const [drawAt, setDrawAt] = useState<number | null>(null);
+  const latest = useRef(initial);
+  const announceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Everyone's reactions play their sound here too, when sound is on (quietly, never over the voice).
   const onReaction = useCallback(
@@ -107,6 +120,9 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
       bestRtt.current = t1 - t0;
       offset.current = Date.parse(s.now) - (t0 + (t1 - t0) / 2);
     }
+    const before = latest.current.auction?.current_lot_id ?? null;
+    latest.current = s;
+    if (s.auction?.current_lot_id && s.auction.current_lot_id !== before) setDrawAt(Date.now() + offset.current);
     setSnap(s);
   }, [sb, auctionId]);
 
@@ -187,18 +203,23 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
         sfx("sold");
         if (announcer.enabled) playSfx("sold", { volume: 0.4 });
         speak(`Sold! ${ign(closed.player_id)} to ${teamName(closed.sold_team_id)} for ${closed.sold_price}.`, { interrupt: true });
-        setResult({ kind: "sold", lot: closed, at: Date.now() });
+        setResult({ kind: "sold", lot: closed, at: Date.now() + offset.current });
       } else if (closed?.status === "unsold") {
         if (announcer.enabled) playSfx("unsold", { volume: 0.35 });
         speak(`${ign(closed.player_id)} goes unsold.`, { interrupt: true });
-        setResult({ kind: "unsold", lot: closed, at: Date.now() });
+        setResult({ kind: "unsold", lot: closed, at: Date.now() + offset.current });
       }
     }
     const l = after ? snap.lots.find((x) => x.id === after) : null;
     const pl = l ? players[l.player_id] : null;
     if (l && pl && after !== before) {
       sfx("next");
-      speak(`Next up, ${pl.ign}.${pl.role ? ` ${pl.role}.` : ""} Base price ${lotBase(snap.auction, l)}.`);
+      const line = `Next up, ${pl.ign}.${pl.role ? ` ${pl.role}.` : ""} Base price ${lotBase(snap.auction, l)}.`;
+      if (announceTimer.current) clearTimeout(announceTimer.current);
+      if (stage) {
+        speak("Let's see who's next.");
+        announceTimer.current = setTimeout(() => speak(line), REVEAL_MS);
+      } else speak(line);
     } else if (l && pl && after === before && l.draw_no !== p.lots.find((x) => x.id === after)?.draw_no) {
       speak(`Bidding restarts for ${pl.ign}.`, { interrupt: true });
       setPriceChangedAt(Date.now() + offset.current);
@@ -313,6 +334,51 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
   const showResult = result && !lot;
   const lotBids = lot ? snap.bids.filter((b) => b.lot_id === lot.id) : [];
   const leaderTeam = leader ? teams[leader] ?? null : null;
+
+  // ---- the hall: draw ceremony, captains' desks and their match-day cover
+  const sinceDraw = drawAt != null ? now - drawAt : Infinity;
+  // Slightly negative right after a draw (the clock ticks every 100ms): still drawing.
+  const drawing = stage && !!lot && sinceDraw > -5000 && sinceDraw < REVEAL_MS;
+  const dayList = matchDays.map((d) => d.day);
+  const squadIds = (teamId: string) => {
+    const t = snap.teams.find((x) => x.team_id === teamId);
+    return [t?.captain_player_id ?? null, ...snap.lots.filter((l) => l.status === "sold" && l.sold_team_id === teamId).map((l) => l.player_id)].filter((x): x is string => !!x);
+  };
+  const covered = (ids: string[]) => squadCoverage(dayList, ids.map((id) => players[id]?.dates), lineup);
+  const hallTeams: HallTeam[] = [...snap.teams]
+    .sort((x, y) => x.sort_order - y.sort_order)
+    .map((t) => {
+      const team = teams[t.team_id] ?? null;
+      const color = teamColor(team);
+      const purse = teamPurse(a, t);
+      return {
+        id: t.team_id,
+        tag: team?.tag ?? "?",
+        name: team?.name ?? "Team",
+        color,
+        ink: onColor(color),
+        captain: t.captain_player_id ? ign(t.captain_player_id) : "–",
+        left: purse.left,
+        bought: purse.bought,
+        maxBuys: a.max_buys,
+        covered: dayList.length ? covered(squadIds(t.team_id)).filter((c) => c.ok).length : null,
+        days: dayList.length,
+        need: lineup,
+      };
+    });
+  let captainNote: { text: string; good: boolean } | null = null;
+  if (myTeam && player && dayList.length && lot?.status !== "sold") {
+    const mine = squadIds(myTeam.team_id);
+    const beforeCov = covered(mine);
+    const short = beforeCov.filter((c) => !c.ok).length;
+    const fills = covered([...mine, player.id]).filter((c, i) => c.ok && !beforeCov[i].ok).length;
+    captainNote =
+      short === 0
+        ? { text: "Your squad already covers every match day", good: true }
+        : fills > 0
+          ? { text: `Fills ${fills} of your ${short} short days`, good: true }
+          : { text: `Doesn't fill any of your ${short} short days`, good: false };
+  }
   const chatEnabled = a.chat_enabled !== false;
   const unread = chat.messages.filter((m) => m.created_at > chatSeenAt).length;
   const openChat = (open: boolean) => {
@@ -344,6 +410,11 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
           {a.status !== "completed" && (
             <Button variant={announcer.enabled ? "default" : "outline"} size="sm" onClick={announcer.toggle}>
               {announcer.enabled ? <Volume2 /> : <VolumeX />} {announcer.enabled ? "Sound on" : "Turn sound on"}
+            </Button>
+          )}
+          {a.status !== "completed" && !reduceMotion && (
+            <Button variant="outline" size="sm" onClick={() => stageShow.set(!showOn)} title="The auctioneer walks to the bag and draws each name">
+              <Sparkle /> {showOn ? "Stage show on" : "Stage show off"}
             </Button>
           )}
           {screen ? (
@@ -402,6 +473,16 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
                     : "md:grid-cols-[minmax(0,1fr)_270px] md:[grid-template-areas:'id_price'_'details_price']",
                 )}
               >
+                {drawing ? (
+                  <div className={cn("flex items-center gap-4 sm:gap-6", screen ? "xl:[grid-area:id]" : "md:[grid-area:id]")}>
+                    <div className={cn("grid shrink-0 animate-pulse place-items-center rounded-2xl bg-white/5 font-heading font-extrabold text-gold ring-4 ring-gold/40", screen ? "size-56 text-9xl sm:size-64" : "size-28 text-6xl sm:size-44 sm:text-8xl")}>?</div>
+                    <div className="min-w-0 space-y-2">
+                      <span className="rounded-md bg-gold px-2 py-0.5 font-heading text-xs font-bold tracking-widest text-brand uppercase">Drawing a name</span>
+                      <h2 className={cn("font-heading leading-[0.88] font-extrabold text-white/80 uppercase", screen ? "text-6xl sm:text-7xl" : "text-4xl sm:text-6xl")}>Who&apos;s next?</h2>
+                      <p className="text-sm text-white/60">The auctioneer is pulling a name from the bag…</p>
+                    </div>
+                  </div>
+                ) : (
                 <div className={cn("flex items-start gap-4 sm:gap-6", screen ? "xl:[grid-area:id]" : "md:[grid-area:id]")}>
                   <PlayerTile player={player} big={screen} />
                   <div className="min-w-0 flex-1 space-y-2 pt-1">
@@ -426,6 +507,7 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
                     {player.bio && <p className="line-clamp-2 max-w-xl text-sm text-white/60 italic">“{player.bio}”</p>}
                   </div>
                 </div>
+                )}
                 <div className={cn("flex flex-col gap-4 rounded-2xl bg-black/20 p-4 ring-1 ring-white/10", screen ? "xl:[grid-area:price]" : "md:[grid-area:price]")}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <PriceBlock price={lot.current_bid ?? lotBase(a, lot)} label={lot.current_bid != null ? "Current bid" : "Opening bid"} leader={leaderTeam} big={screen} />
@@ -433,11 +515,17 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
                   </div>
                   <BidLadder bids={lotBids} teams={teams} big={screen} />
                 </div>
-                <div className={cn("min-w-0 space-y-4", screen ? "xl:[grid-area:details]" : "md:[grid-area:details]")}>
+                <div className={cn("min-w-0 space-y-4", screen ? "xl:[grid-area:details]" : "md:[grid-area:details]", drawing && "invisible")}>
+                  <AvailabilityVerdict days={dayList} answers={player.dates} avgKills={player.stats?.avgKills ?? null} rating={player.rating ?? null} captainNote={captainNote} />
                   <StatRow player={player} />
                   <div className="rounded-xl bg-white/5 p-3 ring-1 ring-white/5">
                     <div className="mb-1.5 font-heading text-[11px] font-bold tracking-widest text-white/50 uppercase">Availability</div>
-                    <AvailabilityBlock availability={player.availability} dates={matchDays.length ? { days: matchDays, answers: player.dates } : undefined} />
+                    {matchDays.length ? (
+                      // Compact on stage: the verdict above already sums it up.
+                      <DateStrip dates={{ days: matchDays, answers: player.dates }} size={screen ? "md" : "sm"} />
+                    ) : (
+                      <AvailabilityBlock availability={player.availability} />
+                    )}
                   </div>
                 </div>
               </div>
@@ -473,6 +561,22 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, teams, vie
               )}
             </AnimatePresence>
           </section>
+          {snap.teams.length > 0 && (
+            <HallScene
+              drawAt={stage ? drawAt : null}
+              now={now}
+              ign={player?.ign ?? null}
+              poolLeft={pool.length}
+              leaderId={lot ? leader : null}
+              bid={lot?.current_bid ?? null}
+              bidKey={lotBids[0] ? String(lotBids[0].id) : null}
+              result={result ? { at: result.at, kind: result.kind, teamId: result.lot.sold_team_id } : null}
+              teams={hallTeams}
+              status={a.status}
+              big={screen}
+              still={!stage}
+            />
+          )}
           {!screen && a.status !== "completed" && (
             <ReactionBar onReact={live.react} canReact={viewer.signedIn} hype={live.hype} crowdOn={crowdOn} onCrowdToggle={() => crowdSounds.set(!crowdOn)} />
           )}

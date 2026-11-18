@@ -301,3 +301,92 @@
     display: none;
   }
 }
+
+/* Auction hall: the auctioneer's walk, the bag being rummaged, bidders' paddles. */
+@keyframes hall-leg {
+  0%,
+  100% {
+    transform: rotate(16deg);
+  }
+  50% {
+    transform: rotate(-16deg);
+  }
+}
+@keyframes hall-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+@keyframes hall-wobble {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(-7deg);
+  }
+  45% {
+    transform: rotate(6deg);
+  }
+  70% {
+    transform: rotate(-4deg);
+  }
+}
+@keyframes hall-pop {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  35% {
+    transform: translateY(-10px) scale(1.12);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes hall-breathe {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.5px);
+  }
+}
+.hall-leg-a,
+.hall-leg-b {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+}
+.hall-walking .hall-leg-a {
+  animation: hall-leg 0.45s ease-in-out infinite;
+}
+.hall-walking .hall-leg-b {
+  animation: hall-leg 0.45s ease-in-out infinite reverse;
+}
+.hall-walking .hall-body {
+  animation: hall-bob 0.225s ease-in-out infinite;
+}
+.hall-idle .hall-body {
+  animation: hall-breathe 3s ease-in-out infinite;
+}
+.hall-wobble {
+  transform-origin: 50% 100%;
+  animation: hall-wobble 0.8s ease-in-out infinite;
+}
+.hall-pop {
+  animation: hall-pop 0.45s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hall-walking .hall-leg-a,
+  .hall-walking .hall-leg-b,
+  .hall-walking .hall-body,
+  .hall-idle .hall-body,
+  .hall-wobble,
+  .hall-pop {
+    animation: none;
+  }
+}

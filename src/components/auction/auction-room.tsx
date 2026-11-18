@@ -17,6 +17,7 @@ import { AvailabilityBlock, DateStrip } from "@/components/availability";
 import DecryptedText from "@/components/reactbits/DecryptedText";
 import { countWord, useAnnouncer } from "./announcer";
 import { AvailabilityVerdict } from "./availability-verdict";
+import { ScoutStrip } from "./scout-strip";
 import { HallScene, REVEAL_MS, stageShow, type HallTeam } from "./hall-scene";
 import { ChatPanel, ChatSheet, useAuctionChat } from "./chat-panel";
 import { MyStatus, REACTIONS, ReactionBar, ReactionLayer, StartCountdown, useAlerts, useAuctionLive, WatchingCount, type ReactionKind } from "./live-extras";
@@ -54,6 +55,16 @@ export interface RoomPlayer {
   dates: Record<string, DateStatus>;
   /** Overall rating from official games (40–99), once they've played enough. */
   rating?: number | null;
+  /** Scouting numbers from official games. */
+  scout?: {
+    ratings: { key: string; label: string; value: number }[];
+    form: { kills: number; won: boolean }[];
+    share: number;
+    winShare: number;
+    carries: number;
+    potm: number;
+    best: number;
+  } | null;
 }
 
 interface Props {
@@ -518,6 +529,7 @@ export function AuctionRoom({ auctionId, initial, players, matchDays, lineup = 5
                 <div className={cn("min-w-0 space-y-4", screen ? "xl:[grid-area:details]" : "md:[grid-area:details]", drawing && "invisible")}>
                   <AvailabilityVerdict days={dayList} answers={player.dates} avgKills={player.stats?.avgKills ?? null} rating={player.rating ?? null} captainNote={captainNote} />
                   <StatRow player={player} />
+                  <ScoutStrip scout={player.scout} big={screen} />
                   <div className="rounded-xl bg-white/5 p-3 ring-1 ring-white/5">
                     <div className="mb-1.5 font-heading text-[11px] font-bold tracking-widest text-white/50 uppercase">Availability</div>
                     {matchDays.length ? (

@@ -46,6 +46,7 @@ export default async function AuctionPage({ searchParams }: PageProps<"/auction"
     if (!p) continue;
     const prof = profiles.get(id);
     const c = career.get(id);
+    const rep = scoutReport(idx, id);
     const lastRoster = idx.data.rosters.filter((r) => r.player_id === id && r.season_id === latestSeason?.id).at(-1);
     players[id] = {
       id,
@@ -58,7 +59,19 @@ export default async function AuctionPage({ searchParams }: PageProps<"/auction"
       stats: c ? { games: c.games, kills: c.kills, revives: c.revives, mvp: c.mvp, potm: c.potm, avgKills: c.avgKills } : null,
       availability: availability.get(id) ?? null,
       dates: answers.get(id) ?? {},
-      rating: scoutReport(idx, id)?.overall ?? null,
+      rating: rep?.overall ?? null,
+      scout:
+        rep && c
+          ? {
+              ratings: rep.ratings.map((r) => ({ key: r.key, label: r.label, value: r.value })),
+              form: rep.form.slice(-5).map((f) => ({ kills: f.kills, won: f.won })),
+              share: c.share,
+              winShare: c.winShare,
+              carries: rep.carries,
+              potm: c.potm,
+              best: rep.bestGame?.kills ?? 0,
+            }
+          : null,
     };
   }
   const teams: Record<string, Team> = {};

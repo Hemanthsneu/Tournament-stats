@@ -16,6 +16,8 @@ import {
 import { playerCareer, playerLeaderboard, rankBy, suggestPotm } from "./players";
 import { carryJobs, clutchPlayers, matchStories, teamStories } from "./insights";
 import { playerHonoursMap, seasonHonours } from "./honours";
+import { scoutReport } from "./profile";
+import { dateShare, squadCoverage } from "../availability";
 import { buildSampleData } from "../sample-data";
 import { PLAYOFF_FORMATS, type PlayoffFormat } from "../playoff-formats";
 import type { Fixture, Game, LeagueData, PlayerGameStat, Season, Team } from "../types";
@@ -545,5 +547,76 @@ describe("contribution and match stories", () => {
     const [a, b] = teamStories(games);
     expect(a).toMatchObject({ team: { id: "A" }, closeWins: 2, closeLosses: 0, upsetWins: 1, longestStreak: 1, current: 1 });
     expect(b).toMatchObject({ team: { id: "B" }, closeWins: 0, closeLosses: 2, current: -1 });
+  });
+});
+
+describe("scouting report", () => {
+  // Six games, A v B. a1 is the steady top fragger, a2 swings, b1 plays every game for B.
+  function data(games = 6) {
+    const { data, game } = league(["A", "B"]);
+    const aWins = [true, true, false, true, true, true];
+    for (let i = 0; i < games; i++) game(aWins[i] ? "A" : "B", aWins[i] ? "B" : "A", 12, 9);
+    data.stats = [];
+    for (const p of ["a1", "a2", "b1"]) data.players.push({ id: p, ign: p.toUpperCase(), bgmi_uid: null, real_name: null, photo_url: null });
+    const a2Kills = [2, 20, 4, 18, 3, 15];
+    data.games.forEach((g, i) => {
+      g.scheduled_at = `2026-11-0${i + 1}T14:00:00Z`;
+      data.stats.push({ game_id: g.id, player_id: "a1", team_id: "A", kills: 14, revives: 0 });
+      data.stats.push({ game_id: g.id, player_id: "a2", team_id: "A", kills: a2Kills[i], revives: 0 });
+      data.stats.push({ game_id: g.id, player_id: "b1", team_id: "B", kills: 8, revives: 0 });
+    });
+    return buildIndex(data);
+  }
+
+  it("rates players 40–99 against the league, with an overall", () => {
+    const idx = data();
+    const a1 = scoutReport(idx, "a1")!;
+    const a2 = scoutReport(idx, "a2")!;
+    expect(a1.ratings).toHaveLength(6);
+    for (const r of a1.ratings) {
+      expect(r.value).toBeGreaterThanOrEqual(40);
+      expect(r.value).toBeLessThanOrEqual(99);
+    }
+    const val = (rep: typeof a1, key: string) => rep.ratings.find((r) => r.key === key)!.value;
+    expect(val(a1, "fragging")).toBeGreaterThan(val(a2, "fragging")); // 14 a game vs 10.3
+    expect(val(a1, "consistency")).toBeGreaterThan(val(a2, "consistency")); // same every game vs swingy
+    expect(a1.overall).toBeGreaterThan(a2.overall!);
+  });
+
+  it("form is oldest first; highlights find the best duo and the win streak", () => {
+    const r = scoutReport(data(), "a2")!;
+    expect(r.form.map((f) => f.kills)).toEqual([2, 20, 4, 18, 3, 15]);
+    expect(r.form.map((f) => f.won)).toEqual([true, true, false, true, true, true]);
+    expect(r.bestGame).toMatchObject({ kills: 20 });
+    expect(r.bestPartner).toMatchObject({ player: { id: "a1" }, games: 6, wins: 5 });
+    expect(r.longestWinStreak).toBe(3);
+    expect(r.favouriteOpponent).toMatchObject({ team: { id: "B" }, games: 6 });
+  });
+
+  it("no ratings before the minimum number of games", () => {
+    const r = scoutReport(data(3), "a1")!;
+    expect(r.overall).toBeNull();
+    expect(r.ratings).toEqual([]);
+    expect(r.form).toHaveLength(3);
+  });
+});
+
+describe("availability cover", () => {
+  const days = ["2026-12-01", "2026-12-02", "2026-12-03"];
+  it("share of match days (maybe counts half), null when unanswered", () => {
+    expect(dateShare(days, { "2026-12-01": "yes", "2026-12-02": "maybe", "2026-12-03": "no" })).toBeCloseTo(0.5);
+    expect(dateShare(days, {})).toBeNull();
+  });
+  it("a day is covered when enough players said yes", () => {
+    const squad = [
+      { "2026-12-01": "yes", "2026-12-02": "yes" },
+      { "2026-12-01": "yes", "2026-12-02": "maybe" },
+      { "2026-12-01": "no" },
+    ] as Record<string, "yes" | "maybe" | "no">[];
+    expect(squadCoverage(days, squad, 2).map((d) => [d.ok, d.risky])).toEqual([
+      [true, false],
+      [false, true],
+      [false, false],
+    ]);
   });
 });
